@@ -2,6 +2,7 @@
 import * as Tone from 'tone';
 import { Midi } from '@tonejs/midi';
 import * as PIXI from 'pixi.js';
+import PianoWav from 'tonejs-instrument-piano-wav';
 
 // 常量定义
 const CANVAS_HEIGHT=650;
@@ -394,8 +395,14 @@ const synth = new Tone.PolySynth(Tone.Synth, {
     maxPolyphony: 32,  // 最大同时发声数
 }).toDestination();
 
-
-
+const piano = new PianoWav({
+    onload: () => {
+        console.log('钢琴加载完成');
+        piano.toDestination();
+        piano.volume.value=-10;     
+        piano.triggerAttackRelease("C4", "2n");
+    }
+});
 function play() {
     currentpart.start();
     Tone.Transport.start();
@@ -423,7 +430,13 @@ function midiInit() {
     )
     console.log(notes)
     currentpart = new Tone.Part((time, note) => {
-        synth.triggerAttackRelease(
+        // synth.triggerAttackRelease(
+        //     note.name,           // 音名 'C4'
+        //     note.duration,       // 持续时间（秒）
+        //     time,                // 开始时间（Transport 自动传入）
+        //     note.velocity        // 力度 0-1
+        // )
+        piano.triggerAttackRelease(
             note.name,           // 音名 'C4'
             note.duration,       // 持续时间（秒）
             time,                // 开始时间（Transport 自动传入）
