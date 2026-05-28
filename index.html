@@ -1,27 +1,65 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>piano-midi</title>
-    <style>
-      *{
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
 
-      #tools{
-        z-index: 100;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="tools">
-      <input type="file"  id="midi">
-      <button id="playmidi">播放</button>
-    </div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piano-midi</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    #tools {
+      z-index: 100;
+    }
+
+    #score-container{
+       height: 300px;
+       width: 100%;
+      overflow-x: hidden;
+
+      position: fixed;
+      top: 10;
+      left: 0;
+      background-color: white;
+    }
+
+    
+
+    /* 小节光标 - 播放到哪个小节时高亮 */
+    .at-cursor-bar {
+      background: rgba(255, 200, 0, 0.3);
+    }
+
+    /* 节拍光标 - 跟随播放进度移动的指示条 */
+    .at-cursor-beat {
+      background: rgba(0, 120, 255, 0.8);
+      width: 3px;
+      /* 必须设置宽度，否则看不见 */
+    }
+
+    /* 选中区域（如果启用了鼠标选择功能） */
+    .at-selection div {
+      background: rgba(64, 64, 255, 0.15);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="tools">
+    <input type="file" id="midi">
+    <button id="playmidi">播放</button>
+    <button id="scoreplay">score播放</button>
+  </div>
+  <div id="score-container">
+    <div id="score-element"></div>
+  </div>
+  <script type="module" src="/src/midi-visual.js"></script>
+  <script src="src/score-show.js" type="module"></script>
+</body>
+
 </html>

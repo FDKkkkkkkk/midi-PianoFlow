@@ -151,7 +151,7 @@ function drawKeyboard() {
 
             key.graphics = graphics;
             key.text = text;
-
+            
             app.stage.addChild(graphics);
             app.stage.addChild(text);
         }
@@ -403,7 +403,7 @@ const piano = new PianoWav({
         piano.triggerAttackRelease("C4", "2n");
     }
 });
-function play() {
+export function play() {
     currentpart.start();
     Tone.Transport.start();
     console.log('kaishi')
