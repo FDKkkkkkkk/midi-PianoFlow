@@ -1,29 +1,29 @@
-
 import * as Tone from 'tone';
 import { Midi } from '@tonejs/midi';
-import * as PIXI from 'pixi.js';
+import { Application, Graphics, Text, BlurFilter } from 'pixi.js';
 import PianoWav from 'tonejs-instrument-piano-wav';
+import { addKeyGlow, drawBlackKeyName,drawKeyShadow,drawWhiteKeyName, removeKeyGlow } from './key-renderer';
+
 
 // 常量定义
-const CANVAS_HEIGHT=650;
+const CANVAS_HEIGHT = 650;
 const TOTAL_KEYS = 88;  // 定义总键数
 const WHITE_KEY_COUNT = 52;  // 白键数量
 const BLACK_KEY_COUNT = 36;  // 黑键数量
 
-
-const app = new PIXI.Application({
+const app = new Application();
+await app.init({
     width: window.innerWidth,
     height: CANVAS_HEIGHT,
-    backgroundColor: 0x2c2c3e,
+    backgroundColor: 0x00000,
     antialias: true,
 });
-app.view.style.display = 'block';
-app.view.style.width = '100%';
 
-app.view.style.height='auto';
+app.canvas.style.display = 'block';
+app.canvas.style.width = '100%';
+app.canvas.style.height = 'auto';
 
-document.body.appendChild(app.view);
-
+document.body.appendChild(app.canvas);
 
 
 // 88键音符名称 (从A0到C8)
@@ -54,25 +54,25 @@ let whiteKeyWidth = 38;     // 白键宽度
 const whiteKeyHeight = 200;  // 白键高度
 const blackKeyWidth = 24;    // 黑键宽度
 const blackKeyHeight = 120;  // 黑键高度
-
+const HighlightColor = 0x9400D3;
 // 存储所有键
 const keys = [];
 
 // 调整白键宽度以适应屏幕
 function calculateKeySize() {
     const totalWhiteKeysWidth = WHITE_KEY_COUNT * whiteKeyWidth;
-  //  if (totalWhiteKeysWidth > app.screen.width) {
-        whiteKeyWidth = (app.screen.width - 40) / WHITE_KEY_COUNT;
-        return whiteKeyWidth;
-  //  }
-   // return whiteKeyWidth;
+    //  if (totalWhiteKeysWidth > app.screen.width) {
+    whiteKeyWidth = (app.screen.width - 40) / WHITE_KEY_COUNT;
+    return whiteKeyWidth;
+    //  }
+    // return whiteKeyWidth;
 }
 
 // 计算琴键位置
 function calculateKeyPositions() {
     const actualWhiteKeyWidth = calculateKeySize();
     const startX = (app.screen.width - (WHITE_KEY_COUNT * actualWhiteKeyWidth)) / 2;
-    const startY = CANVAS_HEIGHT-whiteKeyHeight-20
+    const startY = CANVAS_HEIGHT - whiteKeyHeight - 20
 
     let whiteKeyIndex = 0;
     let currentX = startX;
@@ -122,7 +122,7 @@ function drawKeyboard() {
     // 先画白键
     keys.forEach(key => {
         if (!key.isBlack) {
-            const graphics = new PIXI.Graphics();
+            const graphics = new Graphics();
 
             // 白键背景
             graphics.beginFill(0xffffff);
@@ -136,31 +136,20 @@ function drawKeyboard() {
             graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
             graphics.endFill();
 
-            // 音符标签
-            let textColor = 0x999999;
-            let fontSize = Math.min(11, key.width / 3);
 
-            const text = new PIXI.Text(key.noteName, {
-                fontSize: fontSize,
-                fill: textColor,
-                fontWeight: 'normal',
-                fontFamily: 'Arial'
-            });
-            text.x = key.x + key.width / 2 - text.width / 2;
-            text.y = key.y + key.height - 22;
 
             key.graphics = graphics;
-            key.text = text;
-            
+
             app.stage.addChild(graphics);
-            app.stage.addChild(text);
+
+
         }
     });
 
     // 后画黑键（覆盖在白键上）
     keys.forEach(key => {
         if (key.isBlack) {
-            const graphics = new PIXI.Graphics();
+            const graphics = new Graphics();
 
             // 黑键背景
             graphics.beginFill(0x1a1a1a);
@@ -172,30 +161,19 @@ function drawKeyboard() {
             graphics.beginFill(0x333333, 0.3);
             graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
             graphics.endFill();
-
-            // 音符标签（白色小字）
-            let fontSize = Math.min(9, key.width / 2.5);
-            const text = new PIXI.Text(key.noteName, {
-                fontSize: fontSize,
-                fill: 0xcccccc,
-                fontWeight: 'bold',
-                fontFamily: 'Arial'
-            });
-            text.x = key.x + key.width / 2 - text.width / 2;
-            text.y = key.y + key.height - 18;
-
+            graphics.zIndex=10
             key.graphics = graphics;
-            key.text = text;
+
 
             app.stage.addChild(graphics);
-            app.stage.addChild(text);
+
         }
     });
 }
 
 // 添加鼠标悬停效果
 function addHoverEffects() {
-    app.stage.eventMode='static';
+    app.stage.eventMode = 'static';
     app.stage.hitArea = app.screen;
 
     // 监听鼠标移动
@@ -240,16 +218,18 @@ function addHoverEffects() {
         if (hoveredKey) {
             if (hoveredKey.isBlack) {
                 hoveredKey.graphics.clear();
-                hoveredKey.graphics.beginFill(0x3a3a5a);
+                hoveredKey.graphics.beginFill(HighlightColor);
                 hoveredKey.graphics.lineStyle(1, 0x666666, 1);
                 hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
                 hoveredKey.graphics.endFill();
                 hoveredKey.graphics.beginFill(0x555577, 0.3);
                 hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width - 4, 8);
                 hoveredKey.graphics.endFill();
+                drawKeyShadow(hoveredKey)
+
             } else {
                 hoveredKey.graphics.clear();
-                hoveredKey.graphics.beginFill(0xe8e8ff);
+                hoveredKey.graphics.beginFill(HighlightColor);
                 hoveredKey.graphics.lineStyle(1, 0x9999cc, 1);
                 hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
                 hoveredKey.graphics.endFill();
@@ -257,6 +237,7 @@ function addHoverEffects() {
                 hoveredKey.graphics.beginFill(0x000000, 0.05);
                 hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width, hoveredKey.height);
                 hoveredKey.graphics.endFill();
+                drawKeyShadow(hoveredKey)
             }
         }
     });
@@ -275,15 +256,19 @@ function addClickEffects() {
                 // 按下效果
                 if (key.isBlack) {
                     key.graphics.clear();
-                    key.graphics.beginFill(0x5a5a8a);
+                    key.graphics.beginFill(HighlightColor);
                     key.graphics.lineStyle(1, 0x8888aa, 1);
                     key.graphics.drawRect(key.x, key.y, key.width, key.height);
                     key.graphics.endFill();
+                   
                 } else {
                     key.graphics.clear();
-                    key.graphics.beginFill(0xccccff);
+                    key.graphics.beginFill(HighlightColor);
                     key.graphics.lineStyle(1, 0xaaaaff, 1);
                     key.graphics.drawRect(key.x, key.y, key.width, key.height);
+                    key.graphics.endFill();
+                    key.graphics.beginFill(0x000000, 0.05);
+                    key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
                     key.graphics.endFill();
                 }
 
@@ -323,6 +308,8 @@ function init() {
     addHoverEffects();
     addClickEffects();
 
+
+
     // 监听窗口大小变化
     // window.addEventListener('resize', handleResize);
 
@@ -332,7 +319,7 @@ function init() {
 
 // 启动
 init();
-let timeouts=[];
+let timeouts = [];
 const pianoMap = new Map();
 let cMajorBasis = 21;
 for (let i = 0; i < keys.length; i++) {
@@ -343,20 +330,34 @@ for (let i = 0; i < keys.length; i++) {
 function lightKey(index, during) {
     const key = pianoMap.get(index);
     if (key.isBlack) {
-        key.graphics.clear();
-        key.graphics.beginFill(0x5a5a8a);
-        key.graphics.lineStyle(1, 0x8888aa, 1);
-        key.graphics.drawRect(key.x, key.y, key.width, key.height);
-        key.graphics.endFill();
+        let hoveredKey = key
+        hoveredKey.graphics.clear();
+        hoveredKey.graphics.beginFill(HighlightColor);
+        hoveredKey.graphics.lineStyle(1, 0x666666, 1);
+        hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
+        hoveredKey.graphics.endFill();
+        hoveredKey.graphics.beginFill(0x555577, 0.3);
+        hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width - 4, 8);
+        hoveredKey.graphics.endFill();
+        drawKeyShadow(hoveredKey)
+         addKeyGlow(key,app.stage)
     } else {
-        key.graphics.clear();
-        key.graphics.beginFill(0xccccff);
-        key.graphics.lineStyle(1, 0xaaaaff, 1);
-        key.graphics.drawRect(key.x, key.y, key.width, key.height);
-        key.graphics.endFill();
+        let hoveredKey=key;
+        hoveredKey.graphics.clear();
+        hoveredKey.graphics.beginFill(HighlightColor);
+        hoveredKey.graphics.lineStyle(1, 0x9999cc, 1);
+        hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
+        hoveredKey.graphics.endFill();
+        hoveredKey.graphics.lineStyle(0);
+        hoveredKey.graphics.beginFill(0x000000, 0.05);
+        hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width, hoveredKey.height);
+        hoveredKey.graphics.endFill();
+        drawKeyShadow(hoveredKey)
+         addKeyGlow(key,app.stage)
     }
     // 延迟恢复
-    let thisTimeout=setTimeout(() => {
+    let thisTimeout = setTimeout(() => {
+        removeKeyGlow(key,app.stage)
         if (key.isBlack) {
             key.graphics.clear();
             key.graphics.beginFill(0x1a1a1a);
@@ -399,7 +400,7 @@ const piano = new PianoWav({
     onload: () => {
         console.log('钢琴加载完成');
         piano.toDestination();
-        piano.volume.value=-10;     
+        piano.volume.value = -10;
         piano.triggerAttackRelease("C4", "2n");
     }
 });
@@ -411,14 +412,14 @@ export function play() {
 document.getElementById('playmidi').onclick = () => { play() };
 
 function midiInit() {
-    notes=[];
+    notes = [];
     if (currentpart) {
         currentpart.dispose();
         Tone.Transport.stop();
         Tone.Transport.cancel();
         currentpart = null;
     }
-    if(timeouts.length!=0){
+    if (timeouts.length != 0) {
         timeouts.forEach(clearTimeout)
     }
     midi.tracks.forEach(
@@ -443,5 +444,10 @@ function midiInit() {
             note.velocity        // 力度 0-1
         )
         lightKey(note.midi, note.duration)
+        // 使用 window.emitParticle 调用粒子发射（避免循环依赖）
+        if (window.emitParticle) {
+            window.emitParticle(note.midi, note.duration);
+        }
     }, notes.map(n => [n.time, n]))
 }
+export { app, pianoMap };

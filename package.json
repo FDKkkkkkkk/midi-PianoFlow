@@ -14,8 +14,10 @@
   "dependencies": {
     "@coderline/alphatab": "^1.8.3",
     "@coderline/alphatab-vite": "^1.8.3",
+    "@momer/pixi-particle-emitter": "^6.0.3",
     "@tonejs/midi": "^2.0.28",
-    "pixi.js": "^7.4.3",
+    "pixi-filters": "^6.1.5",
+    "pixi.js": "^8.18.1",
     "tone": "^14.6.1",
     "tonejs-instrument-piano-wav": "^1.1.0"
   }
