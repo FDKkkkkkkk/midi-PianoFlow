@@ -1,138 +1,149 @@
-import * as PIXI from 'pixi.js';
+import { Graphics, Container } from 'pixi.js';
 import { Emitter } from '@momer/pixi-particle-emitter';
-const { app, pianoMap } = await import('./midi-visual.js');
-import { BlurFilter } from 'pixi.js';
-import { BloomFilter,AdvancedBloomFilter,GlowFilter } from 'pixi-filters';
+import { GlowFilter } from 'pixi-filters';
 
+// ===== 对象池 & 全局状态 =====
+const emitterPool = [];
+const containerPool = [];
+const activeEmitters = [];
+let particleTexture = null;
+let sharedGlowFilter = null;
+let tickerRegistered = false;
 
-
-const glow = new PIXI.Graphics()
-    .circle(0, 0, 0.8 )
-    .fill({ color: 0xffffff });
-
-  const texture = app.renderer.generateTexture(glow);
-  
-
-
-
-
-
-
-
-export function emitParticle(midiindex,duration){
-    let key=pianoMap.get(midiindex);
-    // 把容器移动到琴键位置
-    const container1=new PIXI.Container();
-    const blurFilter = new BlurFilter();
-    const bloomFilter = new BloomFilter({
-     blur: 8,          // 模糊强度（相当于半径），默认 2
-    quality: 4,       // 质量，默认 4
-    resolution: 2,   // 亮度阈值
-  });
-    blurFilter.strength=1;
-const bloom = new AdvancedBloomFilter({
-    threshold: 0.2,      // 较低阈值，让紫色也能触发发光
-    bloomScale: 1.8,     // 较高强度，让发光更明显
-    brightness: 1.2,     // 轻微提亮整体
-    blur: 10,            // 较大半径，产生柔和光晕
-    quality: 4,          // 中等质量，平衡性能
-});
-const glowFilter = new GlowFilter({
-  distance: 15,      // 发光距离（像素）
-  outerStrength: 5,  // 外部发光强度
-  innerStrength: 4,  // 内部发光强度
-  color: 0xaa66ff,   // 发光颜色（紫色）
-  quality: 0.5       // 质量
-});
-    container1.filters=[glowFilter];
-   
-  app.stage.addChild(container1);
-    container1.x = key.x 
-    container1.y = key.y;
-    const config = {
-    lifetime: {
-      min: 1,
-      max: 3,
-    },
-    frequency:0.1,
-    spawnChance: 1,
-    particlesPerWave: 20,
-    emitterLifetime: duration+0.5,
-    maxParticles: 800,
-    pos: { x: 0, y: 0 },
-    behaviors: [
-        {
-        type: 'textureSingle',
-        config: { texture },
-      },{
-        type: 'alpha',
-        config: {
-          alpha: {
-            list: [
-              { value: 1, time: 0 },
-              { value: 0.8, time: 0.6 },
-              { value: 0, time: 1 },
-            ],
-          },
-        },
-      },
-      {
-  type: 'colorStatic',
-  config: {
-    color: "8000ff"  // 固定橙色
-  }
-},
-      {
-        type: 'rotation',
-        config: {
-          minStart: 250,
-          maxStart: 290,
-          minSpeed: 0,
-          maxSpeed: 0,
-          accel: 0,
-        },
-      },
-      {
-  type: 'spawnShape',
-  config: {
-    type: 'rect',
-    data: {
-      x: 0,  // 矩形左上角 X（相对于发射器）
-      y: 0,  // 矩形左上角 Y
-      w: (key.width),  // 宽度
-      h: -20    // 高度
-    }
-  }
-},{
-    type: 'movePath',
-    config: {
-      
-      path: "sin(x/10) * min(x/10, 30)",
-     
-      speed: {
-        list: [
-          { value: 120, time: 0 },      // 诞生时速度快
-          { value: 0, time: 1 }         // 消亡时速度为0
-        ]
-      },
-      // 可选：速度变化倍率范围，增加随机感
-      minMult: 0.8
-    }
-  }
-    ]
-  }
-
-const emitter=new Emitter(container1,config)
-emitter.emit=true
-
-app.ticker.add((ticker)=>{
-    // let a=Math.random()*400;
-    // console.log(a);
-    // emitter.updateOwnerPos(a,200)
-
-    emitter.update(ticker.deltaMS/1000)})
-
-
+// ===== 初始化（只执行一次） =====
+function initParticleTexture(app) {
+    if (particleTexture) return;
+    const glow = new Graphics()
+        .circle(0, 0, 0.8)
+        .fill({ color: 0xffffff });
+    particleTexture = app.renderer.generateTexture(glow);
+    glow.destroy();
 }
 
-window.emitParticle=emitParticle
+function initSharedFilters() {
+    if (sharedGlowFilter) return;
+    sharedGlowFilter = new GlowFilter({
+        distance: 15,
+        outerStrength: 5,
+        innerStrength: 4,
+        color: 0xaa66ff,
+        quality: 0.5
+    });
+}
+
+// ===== 统一更新（只注册一个 ticker） =====
+function updateParticles(ticker) {
+    const delta = ticker.deltaMS / 1000;
+    for (let i = activeEmitters.length - 1; i >= 0; i--) {
+        const item = activeEmitters[i];
+        item.emitter.update(delta);
+        // 发射器生命周期到了，停止发射
+        if (!item.emitterStopped && Date.now() - item.startTime > item.lifetime * 1000) {
+            item.emitter.emit = false;
+            item.emitterStopped = true;
+        }
+        // 停止发射后再等粒子最大 lifetime（3秒）让粒子自然消亡
+        if (item.emitterStopped && Date.now() - item.startTime > (item.lifetime + 3) * 1000) {
+            destroyEmitter(item);
+            activeEmitters.splice(i, 1);
+        }
+    }
+}
+
+function destroyEmitter({ emitter, container }) {
+    emitter.emit = false;
+    if (container.parent) container.parent.removeChild(container);
+    container.removeChildren();
+    container.filters = null;
+    emitterPool.push(emitter);
+    containerPool.push(container);
+}
+
+/**
+ * 初始化粒子系统，返回 emitParticle 函数
+ * @param {PIXI.Application} app - PixiJS 应用实例
+ * @param {Map} pianoMap - midi -> key 映射表
+ * @returns {(midiindex: number, duration: number) => void}
+ */
+export function initParticle(app, pianoMap) {
+    initParticleTexture(app);
+    initSharedFilters();
+
+    if (!tickerRegistered) {
+        app.ticker.add(updateParticles);
+        tickerRegistered = true;
+    }
+
+    return function emitParticle(midiindex, duration) {
+        const key = pianoMap.get(midiindex);
+        if (!key) return;
+
+        // 从对象池获取容器
+        let container = containerPool.pop() || new Container();
+        container.filters = [sharedGlowFilter];
+        container.x = key.x;
+        container.y = key.y;
+        container.zIndex = 999;
+        app.stage.sortableChildren = true;
+        app.stage.addChild(container);
+
+        const config = {
+            lifetime: { min: 1, max: 3 },
+            frequency: 0.1,
+            spawnChance: 1,
+            particlesPerWave: 20,
+            emitterLifetime: duration + 0.5,
+            maxParticles: 800,
+            pos: { x: 0, y: 0 },
+            behaviors: [
+                { type: 'textureSingle', config: { texture: particleTexture } },
+                {
+                    type: 'alpha',
+                    config: {
+                        alpha: {
+                            list: [
+                                { value: 1, time: 0 },
+                                { value: 0.8, time: 0.6 },
+                                { value: 0, time: 1 },
+                            ],
+                        },
+                    },
+                },
+                { type: 'colorStatic', config: { color: "8000ff" } },
+                {
+                    type: 'rotation',
+                    config: { minStart: 250, maxStart: 290, minSpeed: 0, maxSpeed: 0, accel: 0 },
+                },
+                {
+                    type: 'spawnShape',
+                    config: { type: 'rect', data: { x: 0, y: 0, w: key.width, h: -20 } },
+                },
+                {
+                    type: 'movePath',
+                    config: {
+                        path: "sin(x/10) * min(x/10, 30)",
+                        speed: { list: [{ value: 120, time: 0 }, { value: 0, time: 1 }] },
+                        minMult: 0.8,
+                    },
+                },
+            ],
+        };
+
+        // 从对象池获取或创建发射器
+        let emitter = emitterPool.pop();
+        if (emitter) {
+            emitter.parent = container;
+            emitter.init(config);
+        } else {
+            emitter = new Emitter(container, config);
+        }
+        emitter.emit = true;
+
+        activeEmitters.push({
+            emitter,
+            container,
+            startTime: Date.now(),
+            lifetime: duration + 0.5,
+        });
+    };
+}

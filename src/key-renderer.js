@@ -150,3 +150,8 @@ export function drawHighlightWhiteKey(key, color) {
     key.graphics.endFill();
     
 }
+
+// 判断是否为黑键
+export function isBlackKey(noteName) {
+    return noteName.includes('#');
+}

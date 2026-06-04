@@ -3,7 +3,16 @@ import { Midi } from '@tonejs/midi';
 import { Application, Graphics, Text, BlurFilter, Container } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import PianoWav from 'tonejs-instrument-piano-wav';
-import { addKeyGlow, drawDefaultBlackKey, drawDefaultWhiteKey, drawHighlightBlackKey, drawHighlightWhiteKey, drawKeyShadow, removeKeyGlow } from './key-renderer';
+import { addKeyGlow, drawDefaultBlackKey, drawDefaultWhiteKey, drawHighlightBlackKey, drawHighlightWhiteKey, drawKeyShadow, removeKeyGlow ,isBlackKey} from './key-renderer';
+import { initParticle } from './particle.js';
+import Stats from 'stats.js';
+
+// 初始化 Stats (FPS 显示器)
+const stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+document.body.appendChild(stats.dom);
+
+// 在 ticker 中更新 stats
 
 
 // 常量定义
@@ -14,7 +23,7 @@ const BLACK_KEY_COUNT = 36;  // 黑键数量
 
 // 瀑布流配置
 const WATERFALL = {
-    pixelsPerSecond: 120,    // 每秒对应的像素数
+    pixelsPerSecond: 150,    // 每秒对应的像素数
     lookAheadTime: 5,        // 提前显示的时间（秒）
     color: 0xaa66ff,         // 统一颜色（紫色）
 };
@@ -52,10 +61,7 @@ if (noteNames.length !== TOTAL_KEYS) {
     console.error(`音符数量错误: 期望${TOTAL_KEYS}个，实际${noteNames.length}个`);
 }
 
-// 判断是否为黑键
-function isBlackKey(noteName) {
-    return noteName.includes('#');
-}
+
 
 // 键盘参数
 let whiteKeyWidth = 38;     // 白键宽度
@@ -75,6 +81,9 @@ app.stage.addChild(waterfallLayer);
 app.stage.addChild(whiteLayer);
 app.stage.addChild(glowLayer);
 app.stage.addChild(blackLayer);
+app.ticker.add(() => {
+    stats.update();
+});
 
 // 调整白键宽度以适应屏幕
 function calculateKeySize() {
@@ -299,18 +308,18 @@ function drawWaterfallBar(bar, noteData, currentTime) {
 
     // 底部柔光底衬（比主色条略宽，产生光晕）
     bar.beginFill(WATERFALL.color, 0.15);
-    bar.drawRect(key.x - 1, barTopY - 1, key.width + 2, barHeight + 2);
+    bar.drawRoundedRect(key.x - 1, barTopY - 1, key.width + 2, barHeight + 2,10);
     bar.endFill();
 
     // 主色条
     bar.beginFill(WATERFALL.color, 0.85);
-    bar.drawRect(key.x, barTopY, key.width, barHeight);
+    bar.drawRoundedRect(key.x, barTopY, key.width, barHeight,10);
     bar.endFill();
 
     // 中心高亮线
-    bar.beginFill(0xFFFFFF, 0.35);
-    bar.drawRect(key.x + 1, barTopY, key.width - 2, Math.min(barHeight, 4));
-    bar.endFill();
+    // bar.beginFill(0xFFFFFF, 0.35);
+    // bar.drawRoundedRect(key.x + 1, barTopY, key.width - 2, Math.min(barHeight, 4),15);
+    // bar.endFill();
 
     // 顶部高亮边
     bar.lineStyle(1.5, 0xFFFFFF, 0.6);
@@ -373,16 +382,20 @@ function init() {
 
 // 启动
 init();
-let timeouts = [];
 const pianoMap = new Map();
 let cMajorBasis = 21;
 for (let i = 0; i < keys.length; i++) {
     pianoMap.set(cMajorBasis, keys[i]);
     cMajorBasis++;
 }
+const emitParticle = initParticle(app, pianoMap);
+
+// 按键高亮结束时间记录（midi → 结束时间戳）
+const keyHighlightEndTime = new Map();
 
 function lightKey(index, during) {
     const key = pianoMap.get(index);
+    if (!key) return;
     if (key.isBlack) {
         drawHighlightBlackKey(key, HighlightColor);
         drawKeyShadow(key);
@@ -392,27 +405,58 @@ function lightKey(index, during) {
         drawKeyShadow(key);
         addKeyGlow(key, glowLayer);
     }
-    // 延迟恢复
-    let thisTimeout = setTimeout(() => {
-        removeKeyGlow(key, glowLayer);
-        if (key.isBlack) {
-            drawDefaultBlackKey(key);
-        } else {
-            drawDefaultWhiteKey(key);
-        }
-    }, during * 1000);
-    timeouts.push(thisTimeout)
+    // 记录该按键应该恢复的时间
+    keyHighlightEndTime.set(index, Tone.Transport.seconds + during);
 }
+
+// 每帧检查是否有按键需要恢复
+app.ticker.add(() => {
+    const now = Tone.Transport.seconds;
+    keyHighlightEndTime.forEach((endTime, midi) => {
+        if (now >= endTime) {
+            const key = pianoMap.get(midi);
+            if (key) {
+                removeKeyGlow(key, glowLayer);
+                if (key.isBlack) {
+                    drawDefaultBlackKey(key);
+                } else {
+                    drawDefaultWhiteKey(key);
+                }
+            }
+            keyHighlightEndTime.delete(midi);
+        }
+    });
+});
 let midi = null;
 let notes = [];
 let currentpart = null
-document.getElementById('midi').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const buffer = await file.arrayBuffer();
-    midi = new Midi(buffer);
-    midiInit();
-})
+// document.getElementById('midi').addEventListener('change', async (e) => {
+//     const file = e.target.files[0];
+//     if (!file) return;
+//     const buffer = await file.arrayBuffer();
+//     midi = new Midi(buffer);
+//     midiInit();
+// })
+// 自动加载固定的MIDI文件
+async function loadDefaultMidi() {
+    try {
+        const response = await fetch('/Steinway.mid'); // 修改为你的文件名
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const buffer = await response.arrayBuffer();
+        midi = new Midi(buffer);
+        midiInit();
+        console.log('默认MIDI文件加载完成');
+    } catch (error) {
+        console.error('加载默认MIDI文件失败:', error);
+    }
+}
+
+
+
+
+
 // 1. 创建合成器（多音合成器，支持和弦）
 const synth = new Tone.PolySynth(Tone.Synth, {
     maxPolyphony: 32,  // 最大同时发声数
@@ -424,12 +468,13 @@ const piano = new PianoWav({
         piano.toDestination();
         piano.volume.value = -10;
         piano.triggerAttackRelease("C4", "2n");
+        loadDefaultMidi();
     }
 });
 export function play() {
     currentpart.start();
     Tone.Transport.start();
-    console.log('kaishi')
+    console.log('开始播放')
 }
 document.getElementById('playmidi').onclick = () => { play() };
 
@@ -453,37 +498,37 @@ function midiInit() {
         Tone.Transport.cancel();
         currentpart = null;
     }
-    if (timeouts.length != 0) {
-        timeouts.forEach(clearTimeout)
-    }
+    // 恢复所有正在高亮的按键并清空记录
+    keyHighlightEndTime.forEach((_, midi) => {
+        const key = pianoMap.get(midi);
+        if (key) {
+            removeKeyGlow(key, glowLayer);
+            if (key.isBlack) {
+                drawDefaultBlackKey(key);
+            } else {
+                drawDefaultWhiteKey(key);
+            }
+        }
+    });
+    keyHighlightEndTime.clear();
 
     midi.tracks.forEach((track) => {
         track.notes.forEach(note => {
             notes.push(note);
             allWaterfallNotes.push({ note });
-        })
-    })
+        });
+    });
 
     console.log(`加载了 ${notes.length} 个音符，${allWaterfallNotes.length} 个瀑布流音符`);
 
     currentpart = new Tone.Part((time, note) => {
-        // synth.triggerAttackRelease(
-        //     note.name,           // 音名 'C4'
-        //     note.duration,       // 持续时间（秒）
-        //     time,                // 开始时间（Transport 自动传入）
-        //     note.velocity        // 力度 0-1
-        // )
         piano.triggerAttackRelease(
             note.name,           // 音名 'C4'
             note.duration,       // 持续时间（秒）
             time,                // 开始时间（Transport 自动传入）
             note.velocity        // 力度 0-1
-        )
-        lightKey(note.midi, note.duration)
-        // 使用 window.emitParticle 调用粒子发射（避免循环依赖）
-        if (window.emitParticle) {
-            window.emitParticle(note.midi, note.duration);
-        }
-    }, notes.map(n => [n.time, n]))
+        );
+        lightKey(note.midi, note.duration);
+        emitParticle(note.midi, note.duration);
+    }, notes.map(n => [n.time, n]));
 }
-export { app, pianoMap };
