@@ -1,8 +1,9 @@
 import * as Tone from 'tone';
 import { Midi } from '@tonejs/midi';
-import { Application, Graphics, Text, BlurFilter } from 'pixi.js';
+import { Application, Graphics, Text, BlurFilter, Container } from 'pixi.js';
+import { GlowFilter } from 'pixi-filters';
 import PianoWav from 'tonejs-instrument-piano-wav';
-import { addKeyGlow, drawBlackKeyName,drawKeyShadow,drawWhiteKeyName, removeKeyGlow } from './key-renderer';
+import { addKeyGlow, drawDefaultBlackKey, drawDefaultWhiteKey, drawHighlightBlackKey, drawHighlightWhiteKey, drawKeyShadow, removeKeyGlow } from './key-renderer';
 
 
 // 常量定义
@@ -10,6 +11,13 @@ const CANVAS_HEIGHT = 650;
 const TOTAL_KEYS = 88;  // 定义总键数
 const WHITE_KEY_COUNT = 52;  // 白键数量
 const BLACK_KEY_COUNT = 36;  // 黑键数量
+
+// 瀑布流配置
+const WATERFALL = {
+    pixelsPerSecond: 120,    // 每秒对应的像素数
+    lookAheadTime: 5,        // 提前显示的时间（秒）
+    color: 0xaa66ff,         // 统一颜色（紫色）
+};
 
 const app = new Application();
 await app.init({
@@ -57,6 +65,16 @@ const blackKeyHeight = 120;  // 黑键高度
 const HighlightColor = 0x9400D3;
 // 存储所有键
 const keys = [];
+
+// 四层架构：瀑布流层 → 白键层 → 发光层 → 黑键层
+const waterfallLayer = new Container();  // 瀑布流最底层
+const whiteLayer = new Container();
+const glowLayer = new Container();
+const blackLayer = new Container();
+app.stage.addChild(waterfallLayer);
+app.stage.addChild(whiteLayer);
+app.stage.addChild(glowLayer);
+app.stage.addChild(blackLayer);
 
 // 调整白键宽度以适应屏幕
 function calculateKeySize() {
@@ -119,7 +137,7 @@ function calculateKeyPositions() {
 
 // 绘制整个键盘
 function drawKeyboard() {
-    // 先画白键
+    // 先画白键（加入 whiteLayer）
     keys.forEach(key => {
         if (!key.isBlack) {
             const graphics = new Graphics();
@@ -136,17 +154,12 @@ function drawKeyboard() {
             graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
             graphics.endFill();
 
-
-
             key.graphics = graphics;
-
-            app.stage.addChild(graphics);
-
-
+            whiteLayer.addChild(graphics);
         }
     });
 
-    // 后画黑键（覆盖在白键上）
+    // 后画黑键（加入 blackLayer，在最顶层）
     keys.forEach(key => {
         if (key.isBlack) {
             const graphics = new Graphics();
@@ -161,12 +174,9 @@ function drawKeyboard() {
             graphics.beginFill(0x333333, 0.3);
             graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
             graphics.endFill();
-            graphics.zIndex=10
+
             key.graphics = graphics;
-
-
-            app.stage.addChild(graphics);
-
+            blackLayer.addChild(graphics);
         }
     });
 }
@@ -193,51 +203,20 @@ function addHoverEffects() {
         // 重置所有琴键样式
         keys.forEach(key => {
             if (key.isBlack) {
-                key.graphics.clear();
-                key.graphics.beginFill(0x1a1a1a);
-                key.graphics.lineStyle(1, 0x444444, 1);
-                key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                key.graphics.endFill();
-                key.graphics.beginFill(0x333333, 0.3);
-                key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
-                key.graphics.endFill();
+                drawDefaultBlackKey(key);
             } else {
-                key.graphics.clear();
-                key.graphics.beginFill(0xffffff);
-                key.graphics.lineStyle(1, 0x888888, 1);
-                key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                key.graphics.endFill();
-                key.graphics.lineStyle(0);
-                key.graphics.beginFill(0x000000, 0.05);
-                key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
-                key.graphics.endFill();
+                drawDefaultWhiteKey(key);
             }
         });
 
         // 高亮当前悬停的琴键
         if (hoveredKey) {
             if (hoveredKey.isBlack) {
-                hoveredKey.graphics.clear();
-                hoveredKey.graphics.beginFill(HighlightColor);
-                hoveredKey.graphics.lineStyle(1, 0x666666, 1);
-                hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
-                hoveredKey.graphics.endFill();
-                hoveredKey.graphics.beginFill(0x555577, 0.3);
-                hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width - 4, 8);
-                hoveredKey.graphics.endFill();
-                drawKeyShadow(hoveredKey)
-
+                drawHighlightBlackKey(hoveredKey, HighlightColor);
+                drawKeyShadow(hoveredKey);
             } else {
-                hoveredKey.graphics.clear();
-                hoveredKey.graphics.beginFill(HighlightColor);
-                hoveredKey.graphics.lineStyle(1, 0x9999cc, 1);
-                hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
-                hoveredKey.graphics.endFill();
-                hoveredKey.graphics.lineStyle(0);
-                hoveredKey.graphics.beginFill(0x000000, 0.05);
-                hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width, hoveredKey.height);
-                hoveredKey.graphics.endFill();
-                drawKeyShadow(hoveredKey)
+                drawHighlightWhiteKey(hoveredKey, HighlightColor);
+                drawKeyShadow(hoveredKey);
             }
         }
     });
@@ -255,44 +234,17 @@ function addClickEffects() {
 
                 // 按下效果
                 if (key.isBlack) {
-                    key.graphics.clear();
-                    key.graphics.beginFill(HighlightColor);
-                    key.graphics.lineStyle(1, 0x8888aa, 1);
-                    key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                    key.graphics.endFill();
-                   
+                    drawHighlightBlackKey(key, HighlightColor);
                 } else {
-                    key.graphics.clear();
-                    key.graphics.beginFill(HighlightColor);
-                    key.graphics.lineStyle(1, 0xaaaaff, 1);
-                    key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                    key.graphics.endFill();
-                    key.graphics.beginFill(0x000000, 0.05);
-                    key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
-                    key.graphics.endFill();
+                    drawHighlightWhiteKey(key, HighlightColor);
                 }
 
                 // 延迟恢复
                 setTimeout(() => {
                     if (key.isBlack) {
-                        key.graphics.clear();
-                        key.graphics.beginFill(0x1a1a1a);
-                        key.graphics.lineStyle(1, 0x444444, 1);
-                        key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                        key.graphics.endFill();
-                        key.graphics.beginFill(0x333333, 0.3);
-                        key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
-                        key.graphics.endFill();
+                        drawDefaultBlackKey(key);
                     } else {
-                        key.graphics.clear();
-                        key.graphics.beginFill(0xffffff);
-                        key.graphics.lineStyle(1, 0x888888, 1);
-                        key.graphics.drawRect(key.x, key.y, key.width, key.height);
-                        key.graphics.endFill();
-                        key.graphics.lineStyle(0);
-                        key.graphics.beginFill(0x000000, 0.05);
-                        key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
-                        key.graphics.endFill();
+                        drawDefaultWhiteKey(key);
                     }
                 }, 150);
 
@@ -301,6 +253,110 @@ function addClickEffects() {
         }
     });
 }
+// ============ 瀑布流系统 ============
+let allWaterfallNotes = [];   // 所有瀑布流音符数据
+let activeWaterfallBars = []; // 当前活动的瀑布流条 Graphics 对象
+const waterfallBarPool = [];  // 对象池（复用 Graphics）
+
+// 发光滤镜（所有瀑布流条共用，提高性能）
+const waterfallGlowFilter = new GlowFilter({
+    distance: 12,
+    outerStrength: 3,
+    innerStrength: 1.5,
+    color: WATERFALL.color,
+    quality: 0.4,
+});
+
+// 创建或从对象池获取一个瀑布流音符条
+function getWaterfallBar() {
+    if (waterfallBarPool.length > 0) {
+        const bar = waterfallBarPool.pop();
+        bar.visible = true;
+        return bar;
+    }
+    const bar = new Graphics();
+    bar.filters = [waterfallGlowFilter];
+    return bar;
+}
+
+// 回收瀑布流音符条到对象池
+function recycleWaterfallBar(bar) {
+    bar.visible = false;
+    waterfallBarPool.push(bar);
+}
+
+// 绘制单个瀑布流音符条
+function drawWaterfallBar(bar, noteData, currentTime) {
+    const key = pianoMap.get(noteData.note.midi);
+    if (!key) return;
+
+    const timeDiff = noteData.note.time - currentTime;
+    const barBottomY = key.y - timeDiff * WATERFALL.pixelsPerSecond;
+    const barHeight = Math.max(noteData.note.duration * WATERFALL.pixelsPerSecond, 3);
+    const barTopY = barBottomY - barHeight;
+
+    bar.clear();
+
+    // 底部柔光底衬（比主色条略宽，产生光晕）
+    bar.beginFill(WATERFALL.color, 0.15);
+    bar.drawRect(key.x - 1, barTopY - 1, key.width + 2, barHeight + 2);
+    bar.endFill();
+
+    // 主色条
+    bar.beginFill(WATERFALL.color, 0.85);
+    bar.drawRect(key.x, barTopY, key.width, barHeight);
+    bar.endFill();
+
+    // 中心高亮线
+    bar.beginFill(0xFFFFFF, 0.35);
+    bar.drawRect(key.x + 1, barTopY, key.width - 2, Math.min(barHeight, 4));
+    bar.endFill();
+
+    // 顶部高亮边
+    bar.lineStyle(1.5, 0xFFFFFF, 0.6);
+    bar.moveTo(key.x, barTopY);
+    bar.lineTo(key.x + key.width, barTopY);
+}
+
+// 更新瀑布流（每帧调用）
+function updateWaterfall() {
+    if (allWaterfallNotes.length === 0) return;
+
+    const currentTime = Tone.Transport.seconds;
+    const keyStartY = keys[0]?.y || 0;
+    const visibleTopY = keyStartY - WATERFALL.lookAheadTime * WATERFALL.pixelsPerSecond;
+
+    // 清除所有已显示条的状态
+    activeWaterfallBars.forEach(bar => recycleWaterfallBar(bar));
+    activeWaterfallBars = [];
+
+    // 遍历所有音符，找出当前应该在屏幕上的
+    for (const noteData of allWaterfallNotes) {
+        const timeDiff = noteData.note.time - currentTime;
+        // 音符条底部Y坐标
+        const barBottomY = keyStartY - timeDiff * WATERFALL.pixelsPerSecond;
+
+        // 判断是否在可视范围内：
+        // 1. 还没到达键盘（在上方可见区域）
+        // 2. 已经过了但还在持续时间内（在键盘区域内）
+        const barHeight = Math.max(noteData.note.duration * WATERFALL.pixelsPerSecond, 3);
+        const barTopY = barBottomY - barHeight;
+
+        // 完全在可视区域上方 → 还没到
+        if (barTopY < visibleTopY) continue;
+        // 完全在键盘下方 → 已经过去了
+        if (barBottomY < keyStartY && timeDiff < -noteData.note.duration) continue;
+
+        const bar = getWaterfallBar();
+        drawWaterfallBar(bar, noteData, currentTime);
+
+        if (!bar.parent) {
+            waterfallLayer.addChild(bar);
+        }
+        activeWaterfallBars.push(bar);
+    }
+}
+
 // 初始化
 function init() {
     calculateKeyPositions();
@@ -308,10 +364,8 @@ function init() {
     addHoverEffects();
     addClickEffects();
 
-
-
-    // 监听窗口大小变化
-    // window.addEventListener('resize', handleResize);
+    // 添加瀑布流更新循环
+    app.ticker.add(updateWaterfall);
 
     console.log('钢琴键盘初始化完成');
     console.log(keys)
@@ -330,53 +384,21 @@ for (let i = 0; i < keys.length; i++) {
 function lightKey(index, during) {
     const key = pianoMap.get(index);
     if (key.isBlack) {
-        let hoveredKey = key
-        hoveredKey.graphics.clear();
-        hoveredKey.graphics.beginFill(HighlightColor);
-        hoveredKey.graphics.lineStyle(1, 0x666666, 1);
-        hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
-        hoveredKey.graphics.endFill();
-        hoveredKey.graphics.beginFill(0x555577, 0.3);
-        hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width - 4, 8);
-        hoveredKey.graphics.endFill();
-        drawKeyShadow(hoveredKey)
-         addKeyGlow(key,app.stage)
+        drawHighlightBlackKey(key, HighlightColor);
+        drawKeyShadow(key);
+        addKeyGlow(key, glowLayer);
     } else {
-        let hoveredKey=key;
-        hoveredKey.graphics.clear();
-        hoveredKey.graphics.beginFill(HighlightColor);
-        hoveredKey.graphics.lineStyle(1, 0x9999cc, 1);
-        hoveredKey.graphics.drawRect(hoveredKey.x, hoveredKey.y, hoveredKey.width, hoveredKey.height);
-        hoveredKey.graphics.endFill();
-        hoveredKey.graphics.lineStyle(0);
-        hoveredKey.graphics.beginFill(0x000000, 0.05);
-        hoveredKey.graphics.drawRect(hoveredKey.x + 2, hoveredKey.y + 2, hoveredKey.width, hoveredKey.height);
-        hoveredKey.graphics.endFill();
-        drawKeyShadow(hoveredKey)
-         addKeyGlow(key,app.stage)
+        drawHighlightWhiteKey(key, HighlightColor);
+        drawKeyShadow(key);
+        addKeyGlow(key, glowLayer);
     }
     // 延迟恢复
     let thisTimeout = setTimeout(() => {
-        removeKeyGlow(key,app.stage)
+        removeKeyGlow(key, glowLayer);
         if (key.isBlack) {
-            key.graphics.clear();
-            key.graphics.beginFill(0x1a1a1a);
-            key.graphics.lineStyle(1, 0x444444, 1);
-            key.graphics.drawRect(key.x, key.y, key.width, key.height);
-            key.graphics.endFill();
-            key.graphics.beginFill(0x333333, 0.3);
-            key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
-            key.graphics.endFill();
+            drawDefaultBlackKey(key);
         } else {
-            key.graphics.clear();
-            key.graphics.beginFill(0xffffff);
-            key.graphics.lineStyle(1, 0x888888, 1);
-            key.graphics.drawRect(key.x, key.y, key.width, key.height);
-            key.graphics.endFill();
-            key.graphics.lineStyle(0);
-            key.graphics.beginFill(0x000000, 0.05);
-            key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
-            key.graphics.endFill();
+            drawDefaultWhiteKey(key);
         }
     }, during * 1000);
     timeouts.push(thisTimeout)
@@ -413,6 +435,18 @@ document.getElementById('playmidi').onclick = () => { play() };
 
 function midiInit() {
     notes = [];
+    allWaterfallNotes = [];  // 清空瀑布流数据
+    // 清空之前的瀑布流条
+    activeWaterfallBars.forEach(bar => recycleWaterfallBar(bar));
+    activeWaterfallBars = [];
+    // 也清理对象池中还在 stage 上的
+    waterfallBarPool.forEach(bar => {
+        if (bar.parent) bar.parent.removeChild(bar);
+    });
+    waterfallBarPool.length = 0;
+    // 清理 waterfallLayer 上的残留
+    waterfallLayer.removeChildren();
+
     if (currentpart) {
         currentpart.dispose();
         Tone.Transport.stop();
@@ -422,14 +456,16 @@ function midiInit() {
     if (timeouts.length != 0) {
         timeouts.forEach(clearTimeout)
     }
-    midi.tracks.forEach(
-        track => {
-            track.notes.forEach(note => {
-                notes.push(note);
-            })
-        }
-    )
-    console.log(notes)
+
+    midi.tracks.forEach((track) => {
+        track.notes.forEach(note => {
+            notes.push(note);
+            allWaterfallNotes.push({ note });
+        })
+    })
+
+    console.log(`加载了 ${notes.length} 个音符，${allWaterfallNotes.length} 个瀑布流音符`);
+
     currentpart = new Tone.Part((time, note) => {
         // synth.triggerAttackRelease(
         //     note.name,           // 音名 'C4'

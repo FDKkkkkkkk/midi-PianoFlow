@@ -37,7 +37,10 @@ export function drawBlackKeyName(key) {
     app.stage.addChild(text);
 }
 
-
+/**
+ * 画琴键的阴影
+ * @param {Key} key 
+ */
 export function drawKeyShadow(key) {
     // 2. 画内阴影 - 顶部
     key.graphics.beginFill(0x000000, 0.3);
@@ -61,12 +64,10 @@ export function drawKeyShadow(key) {
 
 }
 
-// key-renderer.js 第 64~85 行替换为：
-
-export function addKeyGlow(key, stage) {
-    // 如果已经有 glowContainer，先移除
+export function addKeyGlow(key, glowLayer) {
+    // 如果已经有发光层，先移除
     if (key.glowContainer) {
-        removeKeyGlow(key, stage);
+        removeKeyGlow(key, glowLayer);
     }
 
     // 创建一个独立的发光覆盖层，不干扰 key.graphics
@@ -86,18 +87,66 @@ export function addKeyGlow(key, stage) {
         quality: 0.5
     });
     glowGraphics.filters = [glowFilter];
-
-    // 确保发光层在最上层（zIndex 最高）
-    glowGraphics.zIndex = 5;
     
-    stage.addChild(glowGraphics);
+    glowLayer.addChild(glowGraphics);
     key.glowContainer = glowGraphics;  // 存起来，方便后续移除
 }
 
-export function removeKeyGlow(key, stage) {
+export function removeKeyGlow(key, glowLayer) {
     if (key.glowContainer) {
-        stage.removeChild(key.glowContainer);
+        glowLayer.removeChild(key.glowContainer);
         key.glowContainer.destroy({ children: true });
         key.glowContainer = null;
     }
+}
+
+// 绘制默认黑键样式
+export function drawDefaultBlackKey(key) {
+    key.graphics.clear();
+    key.graphics.beginFill(0x1a1a1a);
+    key.graphics.lineStyle(1, 0x444444, 1);
+    key.graphics.drawRect(key.x, key.y, key.width, key.height);
+    key.graphics.endFill();
+    key.graphics.beginFill(0x333333, 0.3);
+    key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+    key.graphics.endFill();
+}
+
+// 绘制默认白键样式
+export function drawDefaultWhiteKey(key) {
+    key.graphics.clear();
+    key.graphics.beginFill(0xffffff);
+    key.graphics.lineStyle(1, 0x888888, 1);
+    key.graphics.drawRect(key.x, key.y, key.width, key.height);
+    key.graphics.endFill();
+    key.graphics.lineStyle(0);
+    key.graphics.beginFill(0x000000, 0.05);
+    key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
+    key.graphics.endFill();
+}
+
+// 绘制高亮黑键样式
+export function drawHighlightBlackKey(key, color) {
+    key.graphics.clear();
+    key.graphics.beginFill(color);
+    key.graphics.lineStyle(1, 0x666666, 1);
+    key.graphics.drawRect(key.x, key.y, key.width, key.height);
+    key.graphics.endFill();
+    key.graphics.beginFill(0x555577, 0.3);
+    key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+    key.graphics.endFill();
+}
+
+// 绘制高亮白键样式
+export function drawHighlightWhiteKey(key, color) {
+    key.graphics.clear();
+    key.graphics.beginFill(color);
+    key.graphics.lineStyle(1, 0x9999cc, 1);
+    key.graphics.drawRect(key.x, key.y, key.width, key.height);
+    key.graphics.endFill();
+    key.graphics.lineStyle(0);
+    key.graphics.beginFill(0x000000, 0.05);
+    key.graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
+    key.graphics.endFill();
+    
 }

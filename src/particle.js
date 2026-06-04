@@ -99,7 +99,7 @@ const glowFilter = new GlowFilter({
     data: {
       x: 0,  // 矩形左上角 X（相对于发射器）
       y: 0,  // 矩形左上角 Y
-      w: -(key.width),  // 宽度
+      w: (key.width),  // 宽度
       h: -20    // 高度
     }
   }
