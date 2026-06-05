@@ -2,7 +2,7 @@ import * as Tone from 'tone';
 import { Midi } from '@tonejs/midi';
 import { Application, Graphics, Text, BlurFilter, Container } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
-import PianoWav from 'tonejs-instrument-piano-wav';
+import { Piano } from 'd-piano';
 import { addKeyGlow, drawDefaultBlackKey, drawDefaultWhiteKey, drawHighlightBlackKey, drawHighlightWhiteKey, drawKeyShadow, removeKeyGlow ,isBlackKey} from './key-renderer';
 import { initParticle } from './particle.js';
 import Stats from 'stats.js';
@@ -429,14 +429,14 @@ app.ticker.add(() => {
 });
 let midi = null;
 let notes = [];
-let currentpart = null
-// document.getElementById('midi').addEventListener('change', async (e) => {
-//     const file = e.target.files[0];
-//     if (!file) return;
-//     const buffer = await file.arrayBuffer();
-//     midi = new Midi(buffer);
-//     midiInit();
-// })
+let currentpart = null;
+document.getElementById('midi').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const buffer = await file.arrayBuffer();
+    midi = new Midi(buffer);
+    midiInit();
+})
 // 自动加载固定的MIDI文件
 async function loadDefaultMidi() {
     try {
@@ -457,21 +457,25 @@ async function loadDefaultMidi() {
 
 
 
-// 1. 创建合成器（多音合成器，支持和弦）
-const synth = new Tone.PolySynth(Tone.Synth, {
-    maxPolyphony: 32,  // 最大同时发声数
-}).toDestination();
 
-const piano = new PianoWav({
-    onload: () => {
-        console.log('钢琴加载完成');
-        piano.toDestination();
-        piano.volume.value = -10;
-        piano.triggerAttackRelease("C4", "2n");
-        loadDefaultMidi();
-    }
+const piano = new Piano({
+    velocities: 5,
+    volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -8 }
 });
+piano.toDestination();
+
+piano.load().then(() => {
+    console.log('钢琴音源加载完成');
+    
+    loadDefaultMidi();
+    
+});
+
 export function play() {
+    if (!currentpart) {
+        console.warn('MIDI尚未加载完成');
+        return;
+    }
     currentpart.start();
     Tone.Transport.start();
     console.log('开始播放')
@@ -498,6 +502,8 @@ function midiInit() {
         Tone.Transport.cancel();
         currentpart = null;
     }
+    // 恢复踏板状态
+    piano.pedalUp();
     // 恢复所有正在高亮的按键并清空记录
     keyHighlightEndTime.forEach((_, midi) => {
         const key = pianoMap.get(midi);
@@ -519,16 +525,57 @@ function midiInit() {
         });
     });
 
-    console.log(`加载了 ${notes.length} 个音符，${allWaterfallNotes.length} 个瀑布流音符`);
+    // 加载延音踏板事件（sustain = CC#64）
+    const pedalEvents = [];
+    midi.tracks.forEach((track) => {
+        const cc = track.controlChanges;
+        const sustainCC = cc.sustain || cc["64"] || cc[64];
+        if (sustainCC) {
+            sustainCC.forEach(evt => {
+                pedalEvents.push({
+                    time: evt.time,
+                    down: evt.value >= 0.5,  // @tonejs/midi 归一化为 0-1
+                });
+            });
+        }
+    });
+    pedalEvents.sort((a, b) => a.time - b.time);
 
-    currentpart = new Tone.Part((time, note) => {
-        piano.triggerAttackRelease(
-            note.name,           // 音名 'C4'
-            note.duration,       // 持续时间（秒）
-            time,                // 开始时间（Transport 自动传入）
-            note.velocity        // 力度 0-1
-        );
-        lightKey(note.midi, note.duration);
-        emitParticle(note.midi, note.duration);
-    }, notes.map(n => [n.time, n]));
+    // 只保留 DOWN 事件，在每个 DOWN 前自动插入 UP（提前一小段时间释放旧音）
+    const PEDAL_UP_LEAD = 0.01; // 提前10ms抬起，避免和下一个DOWN重叠
+    const filteredPedalEvents = [];
+    for (let i = 0; i < pedalEvents.length; i++) {
+        const evt = pedalEvents[i];
+        if (evt.down) {
+            // 在DOWN之前插入UP，让之前的延音释放
+            filteredPedalEvents.push({ time: evt.time - PEDAL_UP_LEAD, down: false });
+            filteredPedalEvents.push(evt);
+        }
+        // 忽略原始的UP事件，由上面的逻辑自动生成
+    }
+
+    // 合并音符和踏板事件到一个 Part
+    const allEvents = [
+        ...notes.map(n => ({ time: n.time, type: 'note', data: n })),
+        ...filteredPedalEvents.map(e => ({ time: e.time, type: 'pedal', data: e })),
+    ];
+    allEvents.sort((a, b) => a.time - b.time);
+
+    console.log(`加载了 ${notes.length} 个音符，${allWaterfallNotes.length} 个瀑布流音符，${pedalEvents.length} 个踏板事件`);
+
+    currentpart = new Tone.Part((time, event) => {
+        if (event.type === 'note') {
+            const note = event.data;
+            piano.keyDown({ note: note.name, time, velocity: note.velocity });
+            piano.keyUp({ note: note.name, time: time + note.duration });
+            lightKey(note.midi, note.duration);
+            emitParticle(note.midi, note.duration);
+        } else if (event.type === 'pedal') {
+            if (event.data.down) {
+                piano.pedalDown({ time });
+            } else {
+                piano.pedalUp({ time });
+            }
+        }
+    }, allEvents.map(e => [e.time, e]));
 }
