@@ -13,8 +13,45 @@
       padding: 0;
     }
 
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
     #tools {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    #tools input[type="file"] {
+      color: #fff;
+    }
+
+    #tools button {
+      padding: 4px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #tools button:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
 
     #score-container {
@@ -51,9 +88,9 @@
 
 <body>
   <div id="tools">
-    <input type="file" id="midi">
+    <input type="file" id="midi" accept=".mid">
     <button id="playmidi">播放</button>
-    <button id="scoreplay">score播放</button>
+      <!-- <button id="scoreplay">score播放</button> -->
   </div>
   <div id="score-container">
     <div id="score-element"></div>

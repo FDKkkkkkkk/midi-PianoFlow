@@ -16,7 +16,7 @@ document.body.appendChild(stats.dom);
 
 
 // 常量定义
-const CANVAS_HEIGHT = 650;
+let canvasHeight = window.innerHeight;  // 动态画布高度
 const TOTAL_KEYS = 88;  // 定义总键数
 const WHITE_KEY_COUNT = 52;  // 白键数量
 const BLACK_KEY_COUNT = 36;  // 黑键数量
@@ -31,14 +31,17 @@ const WATERFALL = {
 const app = new Application();
 await app.init({
     width: window.innerWidth,
-    height: CANVAS_HEIGHT,
+    height: canvasHeight,
     backgroundColor: 0x00000,
     antialias: true,
 });
 
 app.canvas.style.display = 'block';
+app.canvas.style.position = 'fixed';
+app.canvas.style.top = '0';
+app.canvas.style.left = '0';
 app.canvas.style.width = '100%';
-app.canvas.style.height = 'auto';
+app.canvas.style.height = '100%';
 
 document.body.appendChild(app.canvas);
 
@@ -66,7 +69,7 @@ if (noteNames.length !== TOTAL_KEYS) {
 // 键盘参数
 let whiteKeyWidth = 38;     // 白键宽度
 const whiteKeyHeight = 200;  // 白键高度
-const blackKeyWidth = 24;    // 黑键宽度
+const blackKeyWidth = 18;    // 黑键宽度
 const blackKeyHeight = 120;  // 黑键高度
 const HighlightColor = 0x9400D3;
 // 存储所有键
@@ -99,7 +102,7 @@ function calculateKeySize() {
 function calculateKeyPositions() {
     const actualWhiteKeyWidth = calculateKeySize();
     const startX = (app.screen.width - (WHITE_KEY_COUNT * actualWhiteKeyWidth)) / 2;
-    const startY = CANVAS_HEIGHT - whiteKeyHeight - 20
+    const startY = canvasHeight - whiteKeyHeight 
 
     let whiteKeyIndex = 0;
     let currentX = startX;
@@ -374,28 +377,58 @@ function updateWaterfall() {
     activeWaterfallBars = Array.from(nextActiveSet);
 }
 
-// 初始化
+// 初始化（支持窗口缩放时重新调用）
 function init() {
+    // 清除旧数据
+    keys.length = 0;
+    noteToBarMap.clear();
+    activeWaterfallBars.forEach(bar => recycleWaterfallBar(bar));
+    activeWaterfallBars = [];
+    waterfallBarPool.forEach(bar => { if (bar.parent) bar.parent.removeChild(bar); });
+    waterfallBarPool.length = 0;
+    waterfallLayer.removeChildren();
+    whiteLayer.removeChildren();
+    glowLayer.removeChildren();
+    blackLayer.removeChildren();
+
     calculateKeyPositions();
     drawKeyboard();
     addHoverEffects();
     addClickEffects();
 
-    // 添加瀑布流更新循环
-    app.ticker.add(updateWaterfall);
+    // 重建 pianoMap
+    pianoMap.clear();
+    let midiBasis = 21;
+    for (let i = 0; i < keys.length; i++) {
+        pianoMap.set(midiBasis, keys[i]);
+        midiBasis++;
+    }
+
+    // 更新瀑布流定时器引用（避免重复添加）
+    if (!init._waterfallAdded) {
+        app.ticker.add(updateWaterfall);
+        init._waterfallAdded = true;
+    }
 
     console.log('钢琴键盘初始化完成');
-    console.log(keys)
 }
+
+// 窗口缩放处理（防抖）
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        canvasHeight = window.innerHeight;
+        app.renderer.resize(window.innerWidth, window.innerHeight);
+        init();
+    }, 200);
+});
+
+// 声明 pianoMap（init 内部会填充）
+const pianoMap = new Map();
 
 // 启动
 init();
-const pianoMap = new Map();
-let cMajorBasis = 21;
-for (let i = 0; i < keys.length; i++) {
-    pianoMap.set(cMajorBasis, keys[i]);
-    cMajorBasis++;
-}
 const emitParticle = initParticle(app, pianoMap);
 
 // 按键高亮结束时间记录（midi → 结束时间戳）
@@ -479,16 +512,39 @@ piano.load().then(() => {
     
 });
 
-export function play() {
+let isPlaying = false;
+const playBtn = document.getElementById('playmidi');
+
+export function togglePlay() {
     if (!currentpart) {
         console.warn('MIDI尚未加载完成');
         return;
     }
-    currentpart.start();
-    Tone.Transport.start();
-    console.log('开始播放')
+    if (isPlaying) {
+        Tone.Transport.pause();
+        playBtn.textContent = '播放';
+        isPlaying = false;
+        console.log('暂停播放');
+    } else {
+        if (Tone.Transport.state === 'paused') {
+            Tone.Transport.start();
+        } else {
+            currentpart.start();
+            Tone.Transport.start();
+        }
+        playBtn.textContent = '暂停';
+        isPlaying = true;
+        console.log('开始播放');
+    }
 }
-document.getElementById('playmidi').onclick = () => { play() };
+
+// 播放结束时重置状态
+Tone.Transport.on('stop', () => {
+    playBtn.textContent = '播放';
+    isPlaying = false;
+});
+
+playBtn.onclick = () => { togglePlay() };
 
 function midiInit() {
     notes = [];
