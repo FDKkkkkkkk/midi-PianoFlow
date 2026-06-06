@@ -211,7 +211,8 @@ function addHoverEffects() {
 
         // 重置所有琴键样式
         keys.forEach(key => {
-            if (key.isBlack) {
+            if(key.glowContainer){return ;}
+          if (key.isBlack) {
                 drawDefaultBlackKey(key);
             } else {
                 drawDefaultWhiteKey(key);
@@ -266,6 +267,7 @@ function addClickEffects() {
 let allWaterfallNotes = [];   // 所有瀑布流音符数据
 let activeWaterfallBars = []; // 当前活动的瀑布流条 Graphics 对象
 const waterfallBarPool = [];  // 对象池（复用 Graphics）
+const noteToBarMap = new Map(); // noteData -> bar 映射，避免每帧重复创建
 
 // 发光滤镜（所有瀑布流条共用，提高性能）
 const waterfallGlowFilter = new GlowFilter({
@@ -291,40 +293,37 @@ function getWaterfallBar() {
 // 回收瀑布流音符条到对象池
 function recycleWaterfallBar(bar) {
     bar.visible = false;
+    bar._noteData = null;
     waterfallBarPool.push(bar);
 }
 
-// 绘制单个瀑布流音符条
-function drawWaterfallBar(bar, noteData, currentTime) {
+// 初始化瀑布流音符条（只绘制一次，后续只改位置）
+function initWaterfallBar(bar, noteData) {
     const key = pianoMap.get(noteData.note.midi);
-    if (!key) return;
+    if (!key) return false;
 
-    const timeDiff = noteData.note.time - currentTime;
-    const barBottomY = key.y - timeDiff * WATERFALL.pixelsPerSecond;
     const barHeight = Math.max(noteData.note.duration * WATERFALL.pixelsPerSecond, 3);
-    const barTopY = barBottomY - barHeight;
 
     bar.clear();
 
     // 底部柔光底衬（比主色条略宽，产生光晕）
     bar.beginFill(WATERFALL.color, 0.15);
-    bar.drawRoundedRect(key.x - 1, barTopY - 1, key.width + 2, barHeight + 2,10);
+    bar.drawRoundedRect(-1, -1, key.width + 2, barHeight + 2, 10);
     bar.endFill();
 
     // 主色条
     bar.beginFill(WATERFALL.color, 0.85);
-    bar.drawRoundedRect(key.x, barTopY, key.width, barHeight,10);
+    bar.drawRoundedRect(0, 0, key.width, barHeight, 10);
     bar.endFill();
-
-    // 中心高亮线
-    // bar.beginFill(0xFFFFFF, 0.35);
-    // bar.drawRoundedRect(key.x + 1, barTopY, key.width - 2, Math.min(barHeight, 4),15);
-    // bar.endFill();
 
     // 顶部高亮边
     bar.lineStyle(1.5, 0xFFFFFF, 0.6);
-    bar.moveTo(key.x, barTopY);
-    bar.lineTo(key.x + key.width, barTopY);
+    bar.moveTo(0, 0);
+    bar.lineTo(key.width, 0);
+
+    bar._keyX = key.x;
+    bar._noteData = noteData;
+    return true;
 }
 
 // 更新瀑布流（每帧调用）
@@ -334,36 +333,45 @@ function updateWaterfall() {
     const currentTime = Tone.Transport.seconds;
     const keyStartY = keys[0]?.y || 0;
     const visibleTopY = keyStartY - WATERFALL.lookAheadTime * WATERFALL.pixelsPerSecond;
-
-    // 清除所有已显示条的状态
-    activeWaterfallBars.forEach(bar => recycleWaterfallBar(bar));
-    activeWaterfallBars = [];
+    const nextActiveSet = new Set();
 
     // 遍历所有音符，找出当前应该在屏幕上的
     for (const noteData of allWaterfallNotes) {
         const timeDiff = noteData.note.time - currentTime;
-        // 音符条底部Y坐标
         const barBottomY = keyStartY - timeDiff * WATERFALL.pixelsPerSecond;
-
-        // 判断是否在可视范围内：
-        // 1. 还没到达键盘（在上方可见区域）
-        // 2. 已经过了但还在持续时间内（在键盘区域内）
         const barHeight = Math.max(noteData.note.duration * WATERFALL.pixelsPerSecond, 3);
         const barTopY = barBottomY - barHeight;
 
         // 完全在可视区域上方 → 还没到
         if (barTopY < visibleTopY) continue;
-        // 完全在键盘下方 → 已经过去了
-        if (barBottomY < keyStartY && timeDiff < -noteData.note.duration) continue;
+        // 音符已结束超过0.3秒 → 不再显示
+        if (timeDiff + noteData.note.duration < -0.3) continue;
 
-        const bar = getWaterfallBar();
-        drawWaterfallBar(bar, noteData, currentTime);
-
-        if (!bar.parent) {
-            waterfallLayer.addChild(bar);
+        let bar = noteToBarMap.get(noteData);
+        if (!bar) {
+            bar = getWaterfallBar();
+            if (!initWaterfallBar(bar, noteData)) continue;
+            if (!bar.parent) {
+                waterfallLayer.addChild(bar);
+            }
+            noteToBarMap.set(noteData, bar);
         }
-        activeWaterfallBars.push(bar);
+
+        bar.x = bar._keyX;
+        bar.y = barTopY;
+        bar.visible = true;
+        nextActiveSet.add(bar);
     }
+
+    // 回收不再可见的 bar
+    for (const bar of activeWaterfallBars) {
+        if (!nextActiveSet.has(bar)) {
+            recycleWaterfallBar(bar);
+            if (bar._noteData) noteToBarMap.delete(bar._noteData);
+        }
+    }
+
+    activeWaterfallBars = Array.from(nextActiveSet);
 }
 
 // 初始化
@@ -460,7 +468,7 @@ async function loadDefaultMidi() {
 
 const piano = new Piano({
     velocities: 5,
-    volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -8 }
+    volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -10 }
 });
 piano.toDestination();
 
@@ -495,6 +503,7 @@ function midiInit() {
     waterfallBarPool.length = 0;
     // 清理 waterfallLayer 上的残留
     waterfallLayer.removeChildren();
+    noteToBarMap.clear();
 
     if (currentpart) {
         currentpart.dispose();

@@ -34,16 +34,17 @@ function initSharedFilters() {
 // ===== 统一更新（只注册一个 ticker） =====
 function updateParticles(ticker) {
     const delta = ticker.deltaMS / 1000;
+    const now = Date.now();
     for (let i = activeEmitters.length - 1; i >= 0; i--) {
         const item = activeEmitters[i];
         item.emitter.update(delta);
         // 发射器生命周期到了，停止发射
-        if (!item.emitterStopped && Date.now() - item.startTime > item.lifetime * 1000) {
+        if (!item.emitterStopped && now - item.startTime > item.lifetime * 1000) {
             item.emitter.emit = false;
             item.emitterStopped = true;
         }
         // 停止发射后再等粒子最大 lifetime（3秒）让粒子自然消亡
-        if (item.emitterStopped && Date.now() - item.startTime > (item.lifetime + 3) * 1000) {
+        if (item.emitterStopped && now - item.startTime > (item.lifetime + 3) * 1000) {
             destroyEmitter(item);
             activeEmitters.splice(i, 1);
         }
@@ -68,6 +69,7 @@ function destroyEmitter({ emitter, container }) {
 export function initParticle(app, pianoMap) {
     initParticleTexture(app);
     initSharedFilters();
+    app.stage.sortableChildren = true;
 
     if (!tickerRegistered) {
         app.ticker.add(updateParticles);
@@ -84,16 +86,15 @@ export function initParticle(app, pianoMap) {
         container.x = key.x;
         container.y = key.y;
         container.zIndex = 999;
-        app.stage.sortableChildren = true;
         app.stage.addChild(container);
 
         const config = {
             lifetime: { min: 1, max: 3 },
             frequency: 0.1,
             spawnChance: 1,
-            particlesPerWave: 20,
+            particlesPerWave: 15,
             emitterLifetime: duration + 0.5,
-            maxParticles: 800,
+            maxParticles: 500,
             pos: { x: 0, y: 0 },
             behaviors: [
                 { type: 'textureSingle', config: { texture: particleTexture } },
