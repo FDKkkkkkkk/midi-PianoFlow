@@ -34,20 +34,76 @@
       backdrop-filter: blur(6px);
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.12);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+    }
+
+    /* 顶部悬停热区 + 工具栏自身悬停时显示 */
+    #tools::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      z-index: -1;
+      pointer-events: auto;
+    }
+
+    #tools:hover {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     #tools input[type="file"] {
-      color: #fff;
+      display: none;
     }
 
-    #tools button {
-      padding: 4px 16px;
+    #tools label[for="midi"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 4px;
       background: rgba(255, 255, 255, 0.1);
-      color: #fff;
       cursor: pointer;
-      font-size: 14px;
+      user-select: none;
+    }
+
+    #tools label[for="midi"] img {
+      display: block;
+      filter: brightness(0) invert(1);
+    }
+
+    #tools label[for="midi"]:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    #tools #filename {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #tools button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+    }
+
+    #tools button img {
+      display: block;
+      filter: brightness(0) invert(1);
     }
 
     #tools button:hover {
@@ -89,15 +145,25 @@
 <body>
   <div id="tools">
     <input type="file" id="midi" accept=".mid">
-    <button id="playmidi">播放</button>
+    <label for="midi" title="上传文件">
+      <img src="/src/assets/icons/upload.svg" alt="上传" width="20" height="20" />
+    </label>
+    <span id="filename"></span>
+    <button id="playmidi" title="播放">
+      <img class="icon-play" src="/src/assets/icons/play.svg" alt="播放" width="20" height="20" />
+      <img class="icon-pause" src="/src/assets/icons/pause.svg" alt="暂停" width="20" height="20" style="display:none" />
+    </button>
+    <button id="fullscreen" title="全屏">
+      <img src="/src/assets/icons/fullscreen.svg" alt="全屏" width="20" height="20" />
+    </button>
       <!-- <button id="scoreplay">score播放</button> -->
   </div>
   <div id="score-container">
     <div id="score-element"></div>
   </div>
-  <script type="module" src="/src/midi-visual.js"></script>
+  <script src="/src/midi-visual.js" type="module" ></script>
   <!-- <script src="src/score-show.js" type="module"></script> -->
-  <script src="src/particle.js" type="module"></script>
+  <script src="/src/particle.js" type="module"></script>
 </body>
 
 </html>

@@ -211,7 +211,7 @@ function addHoverEffects() {
                 break;
             }
         }
-
+        
         // 重置所有琴键样式
         keys.forEach(key => {
             if(key.glowContainer){return ;}
@@ -231,7 +231,20 @@ function addHoverEffects() {
                 drawHighlightWhiteKey(hoveredKey, HighlightColor);
                 drawKeyShadow(hoveredKey);
             }
+           
         }
+    });
+
+    // 鼠标离开画布时恢复所有琴键
+    app.stage.on('mouseout', () => {
+        keys.forEach(key => {
+            if (key.glowContainer) return;
+            if (key.isBlack) {
+                drawDefaultBlackKey(key);
+            } else {
+                drawDefaultWhiteKey(key);
+            }
+        });
     });
 }
 
@@ -474,6 +487,7 @@ let currentpart = null;
 document.getElementById('midi').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    document.getElementById('filename').textContent = file.name;
     const buffer = await file.arrayBuffer();
     midi = new Midi(buffer);
     midiInit();
@@ -501,6 +515,7 @@ async function loadDefaultMidi() {
 
 const piano = new Piano({
     velocities: 5,
+    maxPolyphony: 128,
     volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -10 }
 });
 piano.toDestination();
@@ -514,6 +529,8 @@ piano.load().then(() => {
 
 let isPlaying = false;
 const playBtn = document.getElementById('playmidi');
+const iconPlay = playBtn.querySelector('.icon-play');
+const iconPause = playBtn.querySelector('.icon-pause');
 
 export function togglePlay() {
     if (!currentpart) {
@@ -522,7 +539,9 @@ export function togglePlay() {
     }
     if (isPlaying) {
         Tone.Transport.pause();
-        playBtn.textContent = '播放';
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        playBtn.title = '播放';
         isPlaying = false;
         console.log('暂停播放');
     } else {
@@ -532,7 +551,9 @@ export function togglePlay() {
             currentpart.start();
             Tone.Transport.start();
         }
-        playBtn.textContent = '暂停';
+        iconPlay.style.display = 'none';
+        iconPause.style.display = 'block';
+        playBtn.title = '暂停';
         isPlaying = true;
         console.log('开始播放');
     }
@@ -540,11 +561,29 @@ export function togglePlay() {
 
 // 播放结束时重置状态
 Tone.Transport.on('stop', () => {
-    playBtn.textContent = '播放';
+    iconPlay.style.display = 'block';
+    iconPause.style.display = 'none';
+    playBtn.title = '播放';
     isPlaying = false;
 });
 
 playBtn.onclick = () => { togglePlay() };
+
+// 全屏切换
+const fullscreenBtn = document.getElementById('fullscreen');
+fullscreenBtn.onclick = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        fullscreenBtn.title = '退出全屏';
+    } else {
+        document.exitFullscreen();
+        fullscreenBtn.title = '全屏';
+    }
+};
+// 监听 ESC 键或全屏状态变化
+document.addEventListener('fullscreenchange', () => {
+    fullscreenBtn.title = document.fullscreenElement ? '退出全屏' : '全屏';
+});
 
 function midiInit() {
     notes = [];
