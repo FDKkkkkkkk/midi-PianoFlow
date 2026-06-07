@@ -5,14 +5,6 @@ import { GlowFilter } from 'pixi-filters';
 import { Piano } from 'd-piano';
 import { addKeyGlow, drawDefaultBlackKey, drawDefaultWhiteKey, drawHighlightBlackKey, drawHighlightWhiteKey, drawKeyShadow, removeKeyGlow ,isBlackKey} from './key-renderer';
 import { initParticle } from './particle.js';
-import Stats from 'stats.js';
-
-// 初始化 Stats (FPS 显示器)
-const stats = new Stats();
-stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
-document.body.appendChild(stats.dom);
-
-// 在 ticker 中更新 stats
 
 
 // 常量定义
@@ -84,9 +76,6 @@ app.stage.addChild(waterfallLayer);
 app.stage.addChild(whiteLayer);
 app.stage.addChild(glowLayer);
 app.stage.addChild(blackLayer);
-app.ticker.add(() => {
-    stats.update();
-});
 
 // 调整白键宽度以适应屏幕
 function calculateKeySize() {
@@ -522,9 +511,8 @@ piano.toDestination();
 
 piano.load().then(() => {
     console.log('钢琴音源加载完成');
-    
-    loadDefaultMidi();
-    
+    // 不再自动加载默认 MIDI，需手动上传
+    // loadDefaultMidi();
 });
 
 let isPlaying = false;
@@ -534,7 +522,7 @@ const iconPause = playBtn.querySelector('.icon-pause');
 
 export function togglePlay() {
     if (!currentpart) {
-        console.warn('MIDI尚未加载完成');
+        document.getElementById('midi').click();
         return;
     }
     if (isPlaying) {
@@ -565,6 +553,8 @@ Tone.Transport.on('stop', () => {
     iconPause.style.display = 'none';
     playBtn.title = '播放';
     isPlaying = false;
+    progressBar.value = 0;
+    timeCurrent.textContent = '0:00';
 });
 
 playBtn.onclick = () => { togglePlay() };
@@ -584,6 +574,86 @@ fullscreenBtn.onclick = () => {
 document.addEventListener('fullscreenchange', () => {
     fullscreenBtn.title = document.fullscreenElement ? '退出全屏' : '全屏';
 });
+
+// ===== 进度条 =====
+const progressBar = document.getElementById('progress-bar');
+const timeCurrent = document.getElementById('time-current');
+const timeTotal = document.getElementById('time-total');
+let midiDuration = 0;
+let isSeeking = false;
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateProgressBar() {
+    if (isSeeking || !midiDuration) return;
+    const t = Tone.Transport.seconds;
+    // 播放到达结尾时自动暂停
+    if (t >= midiDuration) {
+        Tone.Transport.pause();
+        Tone.Transport.seconds = 0;
+        progressBar.value = 0;
+        timeCurrent.textContent = '0:00';
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        playBtn.title = '播放';
+        isPlaying = false;
+        return;
+    }
+    progressBar.value = t;
+    timeCurrent.textContent = formatTime(t);
+}
+
+// 拖动进度条时只更新时间、暂停播放
+progressBar.addEventListener('input', () => {
+    if (!midiDuration) return;
+    isSeeking = true;
+    if (isPlaying) {
+        Tone.Transport.pause();
+    }
+    const t = parseFloat(progressBar.value);
+    timeCurrent.textContent = formatTime(t);
+});
+
+// 松开进度条时 seek 到指定位置，保持暂停
+progressBar.addEventListener('change', () => {
+    if (!midiDuration) return;
+    const t = parseFloat(progressBar.value);
+
+    // 如果 Transport 从未启动过，先 start+seek+pause 进入暂停态
+    if (Tone.Transport.state === 'stopped') {
+        currentpart.start();
+        Tone.Transport.start();
+        Tone.Transport.seconds = t;
+        Tone.Transport.pause();
+    } else {
+        if (isPlaying) {
+            Tone.Transport.pause();
+        }
+        Tone.Transport.seconds = t;
+    }
+
+    // seek 后保持暂停，更新按钮状态
+    if (isPlaying) {
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        playBtn.title = '播放';
+        isPlaying = false;
+    }
+    isSeeking = false;
+});
+
+// 用 requestAnimationFrame 持续刷新进度条
+function progressLoop() {
+    if (isPlaying || isSeeking) {
+        updateProgressBar();
+    }
+    requestAnimationFrame(progressLoop);
+}
+requestAnimationFrame(progressLoop);
 
 function midiInit() {
     notes = [];
@@ -682,4 +752,12 @@ function midiInit() {
             }
         }
     }, allEvents.map(e => [e.time, e]));
+
+    // 更新进度条总时长
+    midiDuration = midi.duration;
+    timeTotal.textContent = formatTime(midiDuration);
+    progressBar.max = midiDuration;
+    progressBar.value = 0;
+    progressBar.disabled = false;
+    timeCurrent.textContent = '0:00';
 }

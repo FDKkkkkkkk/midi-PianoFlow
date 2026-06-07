@@ -1,6 +1,7 @@
 {
   "name": "piano-midi",
   "version": "0.0.0",
+  "description": "实时钢琴 MIDI 可视化播放器 — 瀑布流音符、粒子特效、88键虚拟键盘，基于 PixiJS + Tone.js",
   "private": true,
   "type": "module",
   "scripts": {
