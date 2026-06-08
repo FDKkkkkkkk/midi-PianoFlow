@@ -14,7 +14,11 @@ export const WATERFALL = {
 export const whiteKeyHeight = 200;
 export const blackKeyWidth = 18;
 export const blackKeyHeight = 120;
-export const HighlightColor = 0x9400D3;
+export let HighlightColor = 0x9400D3;
+
+export function setHighlightColor(color) {
+    HighlightColor = color;
+}
 
 // 88键音符名称 (从A0到C8)
 export const noteNames = [

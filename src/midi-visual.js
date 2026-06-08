@@ -11,7 +11,8 @@ import {
 import { initParticle } from './particle.js';
 import {
     TOTAL_KEYS, WHITE_KEY_COUNT, noteNames,
-    whiteKeyHeight, blackKeyWidth, blackKeyHeight, HighlightColor
+    whiteKeyHeight, blackKeyWidth, blackKeyHeight, HighlightColor,
+    setHighlightColor
 } from './constants.js';
 import { createWaterfall } from './waterfall.js';
 import { formatTime, setupVolume, setupFullscreen } from './controls.js';
@@ -148,7 +149,7 @@ window.addEventListener('resize', () => {
 
 // 启动
 init();
-const emitParticle = initParticle(app, pianoMap);
+const { emit: emitParticle, setColor: setParticleColor, setEnabled: setParticleEnabled } = initParticle(app, pianoMap);
 
 // ============ 按键高亮系统 ============
 const keyHighlightEndTime = new Map();
@@ -159,11 +160,11 @@ function lightKey(index, during) {
     if (key.isBlack) {
         drawHighlightBlackKey(key, HighlightColor);
         drawKeyShadow(key);
-        addKeyGlow(key, glowLayer);
+        addKeyGlow(key, glowLayer, HighlightColor);
     } else {
         drawHighlightWhiteKey(key, HighlightColor);
         drawKeyShadow(key);
-        addKeyGlow(key, glowLayer);
+        addKeyGlow(key, glowLayer, HighlightColor);
     }
     keyHighlightEndTime.set(index, Tone.Transport.seconds + during);
 }
@@ -281,6 +282,158 @@ Tone.Transport.on('stop', () => {
 });
 
 playBtn.onclick = () => { togglePlay(); };
+
+// 空格键控制播放/暂停
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        togglePlay();
+    }
+});
+
+// ============ 设置面板 ============
+const settingsBtn = document.getElementById('settings-btn');
+const settingsDialog = document.getElementById('settings-dialog');
+const waterfallToggle = document.getElementById('waterfall-toggle');
+const settingsClose = document.getElementById('settings-close');
+const settingsReset = document.getElementById('settings-reset');
+const bgColorInput = document.getElementById('bg-color');
+const highlightColorInput = document.getElementById('highlight-color');
+const waterfallColorInput = document.getElementById('waterfall-color');
+const particleColorInput = document.getElementById('particle-color');
+const particleToggle = document.getElementById('particle-toggle');
+
+const DEFAULTS = {
+    waterfallVisible: true,
+    particleVisible: true,
+    bgColor: '#000000',
+    highlightColor: '#9400D3',
+    waterfallColor: '#aa66ff',
+    particleColor: '#aa66ff',
+};
+
+// 工具函数：hex 字符串 → 数值
+function hexToNum(hex) { return parseInt(hex.replace('#', ''), 16); }
+
+// 从 localStorage 恢复设置
+const savedWaterfall = localStorage.getItem('waterfallVisible');
+if (savedWaterfall !== null) {
+    waterfallLayer.visible = savedWaterfall === 'true';
+    waterfallToggle.checked = waterfallLayer.visible;
+} else {
+    waterfallToggle.checked = DEFAULTS.waterfallVisible;
+}
+
+const savedParticle = localStorage.getItem('particleVisible');
+if (savedParticle !== null) {
+    setParticleEnabled(savedParticle === 'true');
+    particleToggle.checked = savedParticle === 'true';
+} else {
+    setParticleEnabled(DEFAULTS.particleVisible);
+    particleToggle.checked = DEFAULTS.particleVisible;
+}
+
+function restoreOr(cfgKey, input, applyFn) {
+    const saved = localStorage.getItem(cfgKey);
+    if (saved) {
+        input.value = saved;
+        applyFn(saved);
+    } else {
+        input.value = DEFAULTS[cfgKey];
+        applyFn(DEFAULTS[cfgKey]);
+    }
+}
+
+function applyBgColor(hexStr) {
+    app.renderer.background.color = hexToNum(hexStr);
+    document.body.style.background = hexStr;
+}
+
+function applyHighlightColor(hexStr) {
+    setHighlightColor(hexToNum(hexStr));
+    init();
+}
+
+function applyWaterfallColor(hexStr) {
+    waterfall.setColor(hexToNum(hexStr));
+    // 瀑布流条的颜色在 initBar 时写入，需要重建
+    if (notes.length > 0) {
+        waterfall.clear();
+        waterfall.addNotes(notes.map(n => ({ note: n })));
+    }
+}
+
+function applyParticleColor(hexStr) {
+    setParticleColor(hexToNum(hexStr));
+}
+
+restoreOr('bgColor', bgColorInput, applyBgColor);
+restoreOr('highlightColor', highlightColorInput, applyHighlightColor);
+restoreOr('waterfallColor', waterfallColorInput, applyWaterfallColor);
+restoreOr('particleColor', particleColorInput, applyParticleColor);
+
+settingsBtn.addEventListener('click', () => {
+    settingsDialog.showModal();
+});
+
+settingsClose.addEventListener('click', () => {
+    settingsDialog.close();
+});
+
+settingsDialog.addEventListener('click', (e) => {
+    if (e.target === settingsDialog) settingsDialog.close();
+});
+
+waterfallToggle.addEventListener('change', () => {
+    waterfallLayer.visible = waterfallToggle.checked;
+    localStorage.setItem('waterfallVisible', waterfallToggle.checked);
+});
+
+particleToggle.addEventListener('change', () => {
+    setParticleEnabled(particleToggle.checked);
+    localStorage.setItem('particleVisible', particleToggle.checked);
+});
+
+bgColorInput.addEventListener('input', () => {
+    const val = bgColorInput.value;
+    applyBgColor(val);
+    localStorage.setItem('bgColor', val);
+});
+
+highlightColorInput.addEventListener('input', () => {
+    const val = highlightColorInput.value;
+    applyHighlightColor(val);
+    localStorage.setItem('highlightColor', val);
+});
+
+waterfallColorInput.addEventListener('input', () => {
+    const val = waterfallColorInput.value;
+    applyWaterfallColor(val);
+    localStorage.setItem('waterfallColor', val);
+});
+
+particleColorInput.addEventListener('input', () => {
+    const val = particleColorInput.value;
+    applyParticleColor(val);
+    localStorage.setItem('particleColor', val);
+});
+
+// 重置所有设置为默认值
+settingsReset.addEventListener('click', () => {
+    localStorage.clear();
+    waterfallLayer.visible = DEFAULTS.waterfallVisible;
+    waterfallToggle.checked = DEFAULTS.waterfallVisible;
+    setParticleEnabled(DEFAULTS.particleVisible);
+    particleToggle.checked = DEFAULTS.particleVisible;
+    bgColorInput.value = DEFAULTS.bgColor;
+    applyBgColor(DEFAULTS.bgColor);
+    highlightColorInput.value = DEFAULTS.highlightColor;
+    applyHighlightColor(DEFAULTS.highlightColor);
+    waterfallColorInput.value = DEFAULTS.waterfallColor;
+    applyWaterfallColor(DEFAULTS.waterfallColor);
+    particleColorInput.value = DEFAULTS.particleColor;
+    applyParticleColor(DEFAULTS.particleColor);
+});
 
 // ============ 音量 & 全屏 ============
 setupVolume(

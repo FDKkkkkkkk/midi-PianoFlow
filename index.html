@@ -1,12 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>midi-PianoFlow</title>
+  <title>MIDI PianoFlow — 在线钢琴MIDI可视化播放器</title>
+  <meta name="description" content="PianoFlow 是一款在线钢琴 MIDI 可视化播放器，支持瀑布流音符下落、粒子特效、实时键盘高亮，加载 MIDI 文件即可体验沉浸式钢琴演奏。" />
+  <meta name="keywords" content="MIDI播放器,钢琴可视化,瀑布流,MIDI可视化,PianoFlow,在线钢琴,粒子特效,Web MIDI" />
+  <meta name="author" content="PianoFlow" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://github.com/FDKkkkkkkk/midi-PianoFlow" />
+  <meta name="msvalidate.01" content="F293E00201F823D7500445BEC039729D" />
+  <!-- Open Graph -->
+  <meta property="og:title" content="MIDI PianoFlow — 在线钢琴MIDI可视化播放器" />
+  <meta property="og:description" content="加载 MIDI 文件，体验瀑布流音符下落、粒子特效与实时键盘高亮的沉浸式钢琴演奏。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://github.com/FDKkkkkkkk/midi-PianoFlow" />
+  <meta property="og:image" content="/favicon.svg" />
+  <meta property="og:site_name" content="MIDI PianoFlow" />
+  <meta property="og:locale" content="zh_CN" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="MIDI PianoFlow — 在线钢琴MIDI可视化播放器" />
+  <meta name="twitter:description" content="加载 MIDI 文件，体验瀑布流音符下落、粒子特效与实时键盘高亮的沉浸式钢琴演奏。" />
+  <meta name="twitter:image" content="/favicon.svg" />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/src/style.css" />
+
+  <!-- 结构化数据 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "MIDI PianoFlow",
+    "url": "https://github.com/FDKkkkkkkk/midi-PianoFlow",
+    "description": "在线钢琴 MIDI 可视化播放器，支持瀑布流、粒子特效与实时键盘高亮。",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" }
+  }
+  </script>
 </head>
 
 <body>
@@ -42,6 +77,53 @@
     </button>
       <!-- <button id="scoreplay">score播放</button> -->
   </div>
+  <div id="settings-container">
+    <button id="settings-btn" title="设置">
+      <img src="/src/assets/icons/setting.svg" alt="设置" width="20" height="20" />
+    </button>
+    <a id="github-link" href="https://github.com/FDKkkkkkkk/midi-PianoFlow" target="_blank" rel="noopener noreferrer" title="GitHub">
+      <img src="/src/assets/icons/github.svg" alt="GitHub" width="20" height="20" />
+    </a>
+  </div>
+  <dialog id="settings-dialog">
+    <div class="dialog-content">
+      <h3>设置</h3>
+      <label class="toggle-row">
+        <span>显示瀑布流</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="waterfall-toggle" checked />
+          <span class="toggle-slider"></span>
+        </div>
+      </label>
+      <label class="color-row">
+        <span>背景颜色</span>
+        <input type="color" id="bg-color" value="#000000" />
+      </label>
+      <label class="color-row">
+        <span>键盘高亮颜色</span>
+        <input type="color" id="highlight-color" value="#9400D3" />
+      </label>
+      <label class="color-row">
+        <span>瀑布流颜色</span>
+        <input type="color" id="waterfall-color" value="#aa66ff" />
+      </label>
+      <label class="color-row">
+        <span>粒子颜色</span>
+        <input type="color" id="particle-color" value="#aa66ff" />
+      </label>
+      <label class="toggle-row">
+        <span>显示粒子</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="particle-toggle" checked />
+          <span class="toggle-slider"></span>
+        </div>
+      </label>
+      <div class="dialog-buttons">
+        <button id="settings-reset" class="dialog-reset-btn">重置默认</button>
+        <button id="settings-close" class="dialog-close-btn">关闭</button>
+      </div>
+    </div>
+  </dialog>
   <div id="score-container">
     <div id="score-element"></div>
   </div>

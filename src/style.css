@@ -82,6 +82,8 @@ html, body {
   position: fixed;
   top: 0;
   left: 0;
+  width: 60px;
+  height: 40px;
   z-index: 100;
   opacity: 0;
   pointer-events: none;
@@ -90,9 +92,8 @@ html, body {
 
 #load-example-container::before {
   content: '';
-  display: block;
-  width: 60px;
-  height: 48px;
+  position: absolute;
+  inset: 0;
   pointer-events: auto;
 }
 
@@ -102,10 +103,13 @@ html, body {
 }
 
 #load-example {
+  position: absolute;
+  top: 8px;
+  left: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.55);
@@ -117,6 +121,77 @@ html, body {
 }
 
 #load-example:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 右上角设置按钮（悬停显示） */
+#settings-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 0;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+#settings-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+#settings-container:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#settings-btn img {
+  display: block;
+  filter: brightness(0) invert(1);
+}
+
+#settings-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#github-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  transition: background 0.2s ease;
+}
+
+#github-link img {
+  display: block;
+  filter: brightness(0) invert(1);
+}
+
+#github-link:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -293,4 +368,160 @@ html, body {
 /* 选中区域（如果启用了鼠标选择功能） */
 .at-selection div {
   background: rgba(64, 64, 255, 0.15);
+}
+
+/* ============ 设置对话框 ============ */
+#settings-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0;
+  min-width: 280px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+#settings-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog-content {
+  padding: 24px;
+}
+
+.dialog-content h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.color-row input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 36px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.color-row input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-row input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #9400D3;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialog-reset-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.dialog-reset-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.dialog-close-btn {
+  flex: 2;
+  padding: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.dialog-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
 }

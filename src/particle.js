@@ -9,6 +9,8 @@ const activeEmitters = [];
 let particleTexture = null;
 let sharedGlowFilter = null;
 let tickerRegistered = false;
+let particleColor = 0xaa66ff; // 运行时可变
+let particleEnabled = true;   // 运行时开关
 
 // ===== 初始化（只执行一次） =====
 function initParticleTexture(app) {
@@ -26,7 +28,7 @@ function initSharedFilters() {
         distance: 15,
         outerStrength: 5,
         innerStrength: 4,
-        color: 0xaa66ff,
+        color: particleColor,
         quality: 0.5
     });
 }
@@ -76,7 +78,23 @@ export function initParticle(app, pianoMap) {
         tickerRegistered = true;
     }
 
-    return function emitParticle(midiindex, duration) {
+    return {
+        emit: emitParticle,
+        setColor,
+        setEnabled,
+    };
+
+    function setEnabled(on) {
+        particleEnabled = on;
+    }
+
+    function setColor(numColor) {
+        particleColor = numColor;
+        if (sharedGlowFilter) sharedGlowFilter.color = numColor;
+    }
+
+    function emitParticle(midiindex, duration) {
+        if (!particleEnabled) return;
         const key = pianoMap.get(midiindex);
         if (!key) return;
 
@@ -110,7 +128,7 @@ export function initParticle(app, pianoMap) {
                         },
                     },
                 },
-                { type: 'colorStatic', config: { color: "8000ff" } },
+                { type: 'colorStatic', config: { color: particleColor.toString(16).padStart(6, '0') } },
                 {
                     type: 'rotation',
                     config: { minStart: 250, maxStart: 290, minSpeed: 0, maxSpeed: 0, accel: 0 },

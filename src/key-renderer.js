@@ -64,7 +64,7 @@ export function drawKeyShadow(key) {
 
 }
 
-export function addKeyGlow(key, glowLayer) {
+export function addKeyGlow(key, glowLayer, color = 0xaa66ff) {
     // 如果已经有发光层，先移除
     if (key.glowContainer) {
         removeKeyGlow(key, glowLayer);
@@ -74,8 +74,8 @@ export function addKeyGlow(key, glowLayer) {
     const glowGraphics = new Graphics();
     
     // 用和琴键完全相同的坐标绘制一个半透明矩形作为发光底
-    glowGraphics.beginFill(0xaa66ff, 0.25);
-    glowGraphics.lineStyle(2, 0xaa66ff, 0.6);
+    glowGraphics.beginFill(color, 0.25);
+    glowGraphics.lineStyle(2, color, 0.6);
     glowGraphics.drawRect(key.x, key.y, key.width, key.height);
     glowGraphics.endFill();
 
@@ -83,7 +83,7 @@ export function addKeyGlow(key, glowLayer) {
         distance: 15,
         outerStrength: 5,
         innerStrength: 2,
-        color: 0xaa66ff,
+        color: color,
         quality: 0.5
     });
     glowGraphics.filters = [glowFilter];

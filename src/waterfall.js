@@ -16,13 +16,19 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
     const noteToBarMap = new Map();
 
     // 发光滤镜（所有瀑布流条共用，提高性能）
-    const waterfallGlowFilter = new GlowFilter({
+    let waterfallGlowFilter = new GlowFilter({
         distance: 12,
         outerStrength: 3,
         innerStrength: 1.5,
         color: WATERFALL.color,
         quality: 0.4,
     });
+
+    // 运行时修改瀑布流颜色
+    function setColor(numColor) {
+        WATERFALL.color = numColor;
+        waterfallGlowFilter.color = numColor;
+    }
 
     // 创建或从对象池获取一个瀑布流音符条
     function getBar() {
@@ -120,5 +126,5 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         allWaterfallNotes.length = 0;
     }
 
-    return { update, addNotes, clear };
+    return { update, addNotes, clear, setColor };
 }
