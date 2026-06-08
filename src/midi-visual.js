@@ -507,7 +507,9 @@ const piano = new Piano({
     maxPolyphony: 128,
     volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -10 }
 });
-piano.toDestination();
+// 音量控制
+const volumeNode = new Tone.Gain(0.8).toDestination();
+piano.connect(volumeNode);
 
 piano.load().then(() => {
     console.log('钢琴音源加载完成');
@@ -575,6 +577,49 @@ document.addEventListener('fullscreenchange', () => {
     fullscreenBtn.title = document.fullscreenElement ? '退出全屏' : '全屏';
 });
 
+// ===== 音量控制 =====
+const volumeSlider = document.getElementById('volume-slider');
+const volumeBtn = document.getElementById('volume-btn');
+const iconSound = volumeBtn.querySelector('.icon-sound');
+const iconMute = volumeBtn.querySelector('.icon-mute');
+let isMuted = false;
+let savedVolume = 0.8;
+
+volumeSlider.addEventListener('input', () => {
+    const v = parseFloat(volumeSlider.value) / 100;
+    savedVolume = v;
+    volumeNode.gain.value = v;
+    if (v === 0) {
+        iconSound.style.display = 'none';
+        iconMute.style.display = 'block';
+        volumeBtn.title = '取消静音';
+        isMuted = true;
+    } else if (isMuted) {
+        iconSound.style.display = 'block';
+        iconMute.style.display = 'none';
+        volumeBtn.title = '静音';
+        isMuted = false;
+    }
+});
+
+volumeBtn.onclick = () => {
+    isMuted = !isMuted;
+    if (isMuted) {
+        savedVolume = volumeNode.gain.value;
+        volumeNode.gain.value = 0;
+        volumeSlider.value = 0;
+        iconSound.style.display = 'none';
+        iconMute.style.display = 'block';
+        volumeBtn.title = '取消静音';
+    } else {
+        volumeNode.gain.value = savedVolume || 0.8;
+        volumeSlider.value = (savedVolume || 0.8) * 100;
+        iconSound.style.display = 'block';
+        iconMute.style.display = 'none';
+        volumeBtn.title = '静音';
+    }
+};
+
 // ===== 进度条 =====
 const progressBar = document.getElementById('progress-bar');
 const timeCurrent = document.getElementById('time-current');
@@ -588,6 +633,21 @@ function formatTime(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function clearAllKeyHighlights() {
+    keyHighlightEndTime.forEach((_, midi) => {
+        const key = pianoMap.get(midi);
+        if (key) {
+            removeKeyGlow(key, glowLayer);
+            if (key.isBlack) {
+                drawDefaultBlackKey(key);
+            } else {
+                drawDefaultWhiteKey(key);
+            }
+        }
+    });
+    keyHighlightEndTime.clear();
+}
+
 function updateProgressBar() {
     if (isSeeking || !midiDuration) return;
     const t = Tone.Transport.seconds;
@@ -595,6 +655,7 @@ function updateProgressBar() {
     if (t >= midiDuration) {
         Tone.Transport.pause();
         Tone.Transport.seconds = 0;
+        clearAllKeyHighlights();
         progressBar.value = 0;
         timeCurrent.textContent = '0:00';
         iconPlay.style.display = 'block';
@@ -637,6 +698,7 @@ progressBar.addEventListener('change', () => {
     }
 
     // seek 后保持暂停，更新按钮状态
+    clearAllKeyHighlights();
     if (isPlaying) {
         iconPlay.style.display = 'block';
         iconPause.style.display = 'none';
@@ -679,18 +741,7 @@ function midiInit() {
     // 恢复踏板状态
     piano.pedalUp();
     // 恢复所有正在高亮的按键并清空记录
-    keyHighlightEndTime.forEach((_, midi) => {
-        const key = pianoMap.get(midi);
-        if (key) {
-            removeKeyGlow(key, glowLayer);
-            if (key.isBlack) {
-                drawDefaultBlackKey(key);
-            } else {
-                drawDefaultWhiteKey(key);
-            }
-        }
-    });
-    keyHighlightEndTime.clear();
+    clearAllKeyHighlights();
 
     midi.tracks.forEach((track) => {
         track.notes.forEach(note => {

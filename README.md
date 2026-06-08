@@ -2,6 +2,7 @@
 
 🎹 实时钢琴 MIDI 可视化播放器 — 瀑布流音符、粒子特效、88 键虚拟键盘
 
+[在线演示](https://fdkkkkkkkk.github.io/midi-PianoFlow/)
 ## 功能
 
 - 上传并播放 `.mid` 钢琴曲
