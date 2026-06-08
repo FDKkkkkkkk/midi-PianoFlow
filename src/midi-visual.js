@@ -229,7 +229,7 @@ document.getElementById('load-example').addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = '加载中...';
     try {
-        const response = await fetch('/public/Flower_Dance.mid');
+        const response = await fetch('/Flower_Dance.mid');
         if (!response.ok) throw new Error('加载失败');
         const buffer = await response.arrayBuffer();
         await loadMidiBuffer(buffer, 'Flower_Dance.mid');
