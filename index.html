@@ -10,11 +10,16 @@
 </head>
 
 <body>
+  <div id="load-example-container">
+    <button id="load-example" title="加载示例曲目">示例</button>
+  </div>
   <div id="tools">
-    <input type="file" id="midi" accept=".mid">
-    <label for="midi" title="上传文件">
-      <img src="/src/assets/icons/upload.svg" alt="上传" width="20" height="20" />
-    </label>
+    <div id="upload-group">
+      <input type="file" id="midi" accept=".mid">
+      <label for="midi" title="上传文件">
+        <img src="/src/assets/icons/upload.svg" alt="上传" width="20" height="20" />
+      </label>
+    </div>
     <span id="filename"></span>
     <button id="playmidi" title="播放">
       <img class="icon-play" src="/src/assets/icons/play.svg" alt="播放" width="20" height="20" />

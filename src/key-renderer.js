@@ -155,3 +155,105 @@ export function drawHighlightWhiteKey(key, color) {
 export function isBlackKey(noteName) {
     return noteName.includes('#');
 }
+
+// ============ 键盘整体绘制 ============
+
+/**
+ * 绘制整个键盘（白键层 + 黑键层）
+ */
+export function drawKeyboard(keys, whiteLayer, blackLayer) {
+    // 先画白键
+    keys.forEach(key => {
+        if (!key.isBlack) {
+            const graphics = new Graphics();
+            graphics.beginFill(0xffffff);
+            graphics.lineStyle(1, 0x888888, 1);
+            graphics.drawRect(key.x, key.y, key.width, key.height);
+            graphics.endFill();
+            graphics.lineStyle(0);
+            graphics.beginFill(0x000000, 0.05);
+            graphics.drawRect(key.x + 2, key.y + 2, key.width, key.height);
+            graphics.endFill();
+            key.graphics = graphics;
+            whiteLayer.addChild(graphics);
+        }
+    });
+    // 后画黑键
+    keys.forEach(key => {
+        if (key.isBlack) {
+            const graphics = new Graphics();
+            graphics.beginFill(0x1a1a1a);
+            graphics.lineStyle(1, 0x444444, 1);
+            graphics.drawRect(key.x, key.y, key.width, key.height);
+            graphics.endFill();
+            graphics.beginFill(0x333333, 0.3);
+            graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+            graphics.endFill();
+            key.graphics = graphics;
+            blackLayer.addChild(graphics);
+        }
+    });
+}
+
+/**
+ * 添加鼠标悬停高亮效果
+ */
+export function addHoverEffects(app, keys, highlightColor) {
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+
+    app.stage.on('mousemove', (event) => {
+        const mousePos = event.data.global;
+        let hoveredKey = null;
+        for (let key of keys) {
+            if (mousePos.x >= key.x && mousePos.x <= key.x + key.width &&
+                mousePos.y >= key.y && mousePos.y <= key.y + key.height) {
+                hoveredKey = key;
+                break;
+            }
+        }
+        keys.forEach(key => {
+            if (key.glowContainer) return;
+            if (key.isBlack) drawDefaultBlackKey(key);
+            else drawDefaultWhiteKey(key);
+        });
+        if (hoveredKey) {
+            if (hoveredKey.isBlack) {
+                drawHighlightBlackKey(hoveredKey, highlightColor);
+                drawKeyShadow(hoveredKey);
+            } else {
+                drawHighlightWhiteKey(hoveredKey, highlightColor);
+                drawKeyShadow(hoveredKey);
+            }
+        }
+    });
+
+    app.stage.on('mouseout', () => {
+        keys.forEach(key => {
+            if (key.glowContainer) return;
+            if (key.isBlack) drawDefaultBlackKey(key);
+            else drawDefaultWhiteKey(key);
+        });
+    });
+}
+
+/**
+ * 添加鼠标点击变色效果
+ */
+export function addClickEffects(app, keys, highlightColor) {
+    app.stage.on('mousedown', (event) => {
+        const mousePos = event.data.global;
+        for (let key of keys) {
+            if (mousePos.x >= key.x && mousePos.x <= key.x + key.width &&
+                mousePos.y >= key.y && mousePos.y <= key.y + key.height) {
+                if (key.isBlack) drawHighlightBlackKey(key, highlightColor);
+                else drawHighlightWhiteKey(key, highlightColor);
+                setTimeout(() => {
+                    if (key.isBlack) drawDefaultBlackKey(key);
+                    else drawDefaultWhiteKey(key);
+                }, 150);
+                break;
+            }
+        }
+    });
+}

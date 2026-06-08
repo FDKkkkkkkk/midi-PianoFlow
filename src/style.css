@@ -72,6 +72,54 @@ html, body {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* 上传按钮组 */
+#upload-group {
+  display: flex;
+}
+
+/* 左上角示例按钮（悬停显示） */
+#load-example-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+#load-example-container::before {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 48px;
+  pointer-events: auto;
+}
+
+#load-example-container:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#load-example {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#load-example:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 #tools #filename {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
