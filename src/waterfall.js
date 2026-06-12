@@ -62,6 +62,9 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         bar.endFill();
 
         bar._keyX = key.x;
+        bar._keyWidth = key.width;
+        bar._clipped = false;
+        bar._lastClipOffset = 0;
         bar._noteData = noteData;
         return true;
     }

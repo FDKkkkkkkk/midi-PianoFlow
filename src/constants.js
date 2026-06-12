@@ -6,7 +6,7 @@ export const BLACK_KEY_COUNT = 36;
 // 瀑布流配置
 export const WATERFALL = {
     pixelsPerSecond: 150,
-    lookAheadTime: 5,
+    lookAheadTime: 10,
     color: 0xaa66ff,
 };
 

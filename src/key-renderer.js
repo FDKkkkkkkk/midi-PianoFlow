@@ -187,7 +187,7 @@ export function drawKeyboard(keys, whiteLayer, blackLayer) {
             graphics.drawRect(key.x, key.y, key.width, key.height);
             graphics.endFill();
             graphics.beginFill(0x333333, 0.3);
-            graphics.drawRect(key.x + 2, key.y + key.height - 10, key.width - 4, 8);
+            graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
             graphics.endFill();
             key.graphics = graphics;
             blackLayer.addChild(graphics);

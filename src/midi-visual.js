@@ -18,6 +18,7 @@ import { createWaterfall } from './waterfall.js';
 import { formatTime, setupVolume, setupFullscreen } from './controls.js';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
+import Stats from 'stats.js';
 const notyf = new Notyf({
     position: { x: 'right', y: 'top' },
     duration: 2500
@@ -158,6 +159,16 @@ window.addEventListener('resize', () => {
 init();
 const { emit: emitParticle, setColor: setParticleColor, setEnabled: setParticleEnabled } = initParticle(app, pianoMap);
 
+// ============ 帧率显示 ============
+const stats = new Stats();
+stats.dom.style.position = 'fixed';
+stats.dom.style.top = '0';
+stats.dom.style.left = '0';
+stats.dom.style.zIndex = '10000';
+stats.dom.style.display = 'none';
+document.body.appendChild(stats.dom);
+app.ticker.add(() => stats.update());
+
 // ============ 按键高亮系统 ============
 const keyHighlightEndTime = new Map();
 
@@ -166,6 +177,7 @@ function lightKey(index, during) {
     if (!key) return;
     if (key.isBlack) {
         drawHighlightBlackKey(key, HighlightColor);
+        drawKeyShadow(key);
         addKeyGlow(key, glowLayer, HighlightColor);
     } else {
         drawHighlightWhiteKey(key, HighlightColor);
@@ -314,10 +326,12 @@ const highlightColorInput = document.getElementById('highlight-color');
 const waterfallColorInput = document.getElementById('waterfall-color');
 const particleColorInput = document.getElementById('particle-color');
 const particleToggle = document.getElementById('particle-toggle');
+const fpsToggle = document.getElementById('fps-toggle');
 
 const DEFAULTS = {
     waterfallVisible: true,
     particleVisible: true,
+    fpsVisible: false,
     bgColor: '#000000',
     highlightColor: '#9400D3',
     waterfallColor: '#aa66ff',
@@ -343,6 +357,16 @@ if (savedParticle !== null) {
 } else {
     setParticleEnabled(DEFAULTS.particleVisible);
     particleToggle.checked = DEFAULTS.particleVisible;
+}
+
+const savedFps = localStorage.getItem('fpsVisible');
+if (savedFps !== null) {
+    const show = savedFps === 'true';
+    stats.dom.style.display = show ? 'block' : 'none';
+    fpsToggle.checked = show;
+} else {
+    stats.dom.style.display = 'none';
+    fpsToggle.checked = DEFAULTS.fpsVisible;
 }
 
 function restoreOr(cfgKey, input, applyFn) {
@@ -406,6 +430,11 @@ particleToggle.addEventListener('change', () => {
     localStorage.setItem('particleVisible', particleToggle.checked);
 });
 
+fpsToggle.addEventListener('change', () => {
+    stats.dom.style.display = fpsToggle.checked ? 'block' : 'none';
+    localStorage.setItem('fpsVisible', fpsToggle.checked);
+});
+
 bgColorInput.addEventListener('input', () => {
     const val = bgColorInput.value;
     applyBgColor(val);
@@ -437,6 +466,8 @@ settingsReset.addEventListener('click', () => {
     waterfallToggle.checked = DEFAULTS.waterfallVisible;
     setParticleEnabled(DEFAULTS.particleVisible);
     particleToggle.checked = DEFAULTS.particleVisible;
+    stats.dom.style.display = 'none';
+    fpsToggle.checked = DEFAULTS.fpsVisible;
     bgColorInput.value = DEFAULTS.bgColor;
     applyBgColor(DEFAULTS.bgColor);
     highlightColorInput.value = DEFAULTS.highlightColor;
