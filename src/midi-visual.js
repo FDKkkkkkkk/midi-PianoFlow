@@ -166,7 +166,6 @@ function lightKey(index, during) {
     if (!key) return;
     if (key.isBlack) {
         drawHighlightBlackKey(key, HighlightColor);
-        drawKeyShadow(key);
         addKeyGlow(key, glowLayer, HighlightColor);
     } else {
         drawHighlightWhiteKey(key, HighlightColor);

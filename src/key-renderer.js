@@ -108,7 +108,7 @@ export function drawDefaultBlackKey(key) {
     key.graphics.drawRect(key.x, key.y, key.width, key.height);
     key.graphics.endFill();
     key.graphics.beginFill(0x333333, 0.3);
-    key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+    key.graphics.drawRect(key.x + 2, key.y + key.height - 10, key.width - 4, 8);
     key.graphics.endFill();
 }
 
@@ -133,7 +133,7 @@ export function drawHighlightBlackKey(key, color) {
     key.graphics.drawRect(key.x, key.y, key.width, key.height);
     key.graphics.endFill();
     key.graphics.beginFill(0x555577, 0.3);
-    key.graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+    key.graphics.drawRect(key.x + 2, key.y + key.height - 10, key.width - 4, 8);
     key.graphics.endFill();
 }
 
@@ -187,7 +187,7 @@ export function drawKeyboard(keys, whiteLayer, blackLayer) {
             graphics.drawRect(key.x, key.y, key.width, key.height);
             graphics.endFill();
             graphics.beginFill(0x333333, 0.3);
-            graphics.drawRect(key.x + 2, key.y + 2, key.width - 4, 8);
+            graphics.drawRect(key.x + 2, key.y + key.height - 10, key.width - 4, 8);
             graphics.endFill();
             key.graphics = graphics;
             blackLayer.addChild(graphics);
