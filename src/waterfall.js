@@ -105,8 +105,9 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         // 回收不再可见的 bar
         for (const bar of activeWaterfallBars) {
             if (!nextActiveSet.has(bar)) {
+                const oldNote = bar._noteData;
                 recycleBar(bar);
-                if (bar._noteData) noteToBarMap.delete(bar._noteData);
+                if (oldNote) noteToBarMap.delete(oldNote);
             }
         }
 
