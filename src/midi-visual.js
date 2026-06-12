@@ -16,6 +16,13 @@ import {
 } from './constants.js';
 import { createWaterfall } from './waterfall.js';
 import { formatTime, setupVolume, setupFullscreen } from './controls.js';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
+const notyf = new Notyf({
+    position: { x: 'right', y: 'top' },
+    duration: 2500
+});
+
 
 // 动态画布高度
 let canvasHeight = window.innerHeight;
@@ -208,6 +215,10 @@ piano.connect(volumeNode);
 
 piano.load().then(() => {
     console.log('钢琴音源加载完成');
+    notyf.success('钢琴音源加载成功');
+}).catch((err) => {
+    console.error('钢琴音源加载失败', err);
+    notyf.error('钢琴音源加载失败');
 });
 
 // ============ MIDI 文件加载 ============
@@ -281,7 +292,9 @@ Tone.Transport.on('stop', () => {
     timeCurrent.textContent = '0:00';
 });
 
-playBtn.onclick = () => { togglePlay(); };
+
+
+playBtn.onclick = () => {  togglePlay(); };
 
 // 空格键控制播放/暂停
 document.addEventListener('keydown', (e) => {

@@ -17,6 +17,7 @@
     "@momer/pixi-particle-emitter": "^6.0.3",
     "@tonejs/midi": "^2.0.28",
     "d-piano": "^1.2.0",
+    "notyf": "^3.10.0",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.18.1",
     "stats.js": "^0.17.0",
