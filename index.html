@@ -125,6 +125,20 @@
           <span class="toggle-slider"></span>
         </div>
       </label>
+      <label class="toggle-row">
+        <span>混响</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="reverb-toggle" />
+          <span class="toggle-slider"></span>
+        </div>
+      </label>
+      <label class="slider-row">
+        <span>混响强度</span>
+        <div class="slider-container">
+          <input type="range" id="reverb-slider" min="0" max="100" value="30" step="1" />
+          <span id="reverb-value">30%</span>
+        </div>
+      </label>
       <div class="dialog-buttons">
         <button id="settings-reset" class="dialog-reset-btn">重置默认</button>
         <button id="settings-close" class="dialog-close-btn">关闭</button>

@@ -221,8 +221,10 @@ const piano = new Piano({
     maxPolyphony: 64,
     volume: { strings: -10, keybed: -10, harmonics: -5, pedal: -10 }
 });
+const reverb = new Tone.Reverb({ decay: 2.5, wet: 0 });
 const volumeNode = new Tone.Gain(0.8).toDestination();
-piano.connect(volumeNode);
+piano.connect(reverb);
+reverb.connect(volumeNode);
 
 let pianoLoaded = false;
 
@@ -283,6 +285,7 @@ export function togglePlay() {
     }
     if (isPlaying) {
         Tone.Transport.pause();
+        piano.pedalUp();
         iconPlay.style.display = 'block';
         iconPause.style.display = 'none';
         playBtn.title = '播放';
@@ -334,6 +337,9 @@ const waterfallColorInput = document.getElementById('waterfall-color');
 const particleColorInput = document.getElementById('particle-color');
 const particleToggle = document.getElementById('particle-toggle');
 const fpsToggle = document.getElementById('fps-toggle');
+const reverbToggle = document.getElementById('reverb-toggle');
+const reverbSlider = document.getElementById('reverb-slider');
+const reverbValue = document.getElementById('reverb-value');
 
 const DEFAULTS = {
     waterfallVisible: true,
@@ -343,6 +349,8 @@ const DEFAULTS = {
     highlightColor: '#9400D3',
     waterfallColor: '#aa66ff',
     particleColor: '#aa66ff',
+    reverbEnabled: false,
+    reverbWet: 30,
 };
 
 // 工具函数：hex 字符串 → 数值
@@ -442,6 +450,48 @@ fpsToggle.addEventListener('change', () => {
     localStorage.setItem('fpsVisible', fpsToggle.checked);
 });
 
+// ============ 混响控制 ============
+function applyReverbToggle() {
+    const enabled = reverbToggle.checked;
+    reverb.wet.value = enabled ? reverbSlider.value / 100 : 0;
+    reverbSlider.disabled = !enabled;
+    reverbValue.style.opacity = enabled ? '1' : '0.4';
+}
+
+function applyReverbWet() {
+    const wet = reverbSlider.value / 100;
+    if (reverbToggle.checked) {
+        reverb.wet.value = wet;
+    }
+    reverbValue.textContent = reverbSlider.value + '%';
+}
+
+// 恢复混响设置
+const savedReverbEnabled = localStorage.getItem('reverbEnabled');
+if (savedReverbEnabled !== null) {
+    reverbToggle.checked = savedReverbEnabled === 'true';
+} else {
+    reverbToggle.checked = DEFAULTS.reverbEnabled;
+}
+const savedReverbWet = localStorage.getItem('reverbWet');
+if (savedReverbWet !== null) {
+    reverbSlider.value = savedReverbWet;
+} else {
+    reverbSlider.value = DEFAULTS.reverbWet;
+}
+applyReverbToggle();
+applyReverbWet();
+
+reverbToggle.addEventListener('change', () => {
+    applyReverbToggle();
+    localStorage.setItem('reverbEnabled', reverbToggle.checked);
+});
+
+reverbSlider.addEventListener('input', () => {
+    applyReverbWet();
+    localStorage.setItem('reverbWet', reverbSlider.value);
+});
+
 bgColorInput.addEventListener('input', () => {
     const val = bgColorInput.value;
     applyBgColor(val);
@@ -483,6 +533,10 @@ settingsReset.addEventListener('click', () => {
     applyWaterfallColor(DEFAULTS.waterfallColor);
     particleColorInput.value = DEFAULTS.particleColor;
     applyParticleColor(DEFAULTS.particleColor);
+    reverbToggle.checked = DEFAULTS.reverbEnabled;
+    reverbSlider.value = DEFAULTS.reverbWet;
+    applyReverbToggle();
+    applyReverbWet();
 });
 
 // ============ 音量 & 全屏 ============
@@ -570,7 +624,6 @@ function midiInit() {
         Tone.Transport.cancel();
         currentpart = null;
     }
-    piano.pedalUp();
     clearAllKeyHighlights();
 
     // 收集音符
@@ -596,22 +649,15 @@ function midiInit() {
     });
     pedalEvents.sort((a, b) => a.time - b.time);
 
-    // 只保留 DOWN 事件，每个 DOWN 前自动插入 UP
-    const PEDAL_UP_LEAD = 0.01;
-    const filteredPedalEvents = [];
-    for (let i = 0; i < pedalEvents.length; i++) {
-        const evt = pedalEvents[i];
-        if (evt.down) {
-            filteredPedalEvents.push({ time: evt.time - PEDAL_UP_LEAD, down: false });
-            filteredPedalEvents.push(evt);
-        }
+    // 将每个音符拆成 noteOn / noteOff 两个事件，与踏板事件合并
+    const allEvents = [];
+    for (const n of notes) {
+        allEvents.push({ time: n.time, type: 'noteOn', data: n });
+        allEvents.push({ time: n.time + n.duration, type: 'noteOff', data: n });
     }
-
-    // 合并音符和踏板事件
-    const allEvents = [
-        ...notes.map(n => ({ time: n.time, type: 'note', data: n })),
-        ...filteredPedalEvents.map(e => ({ time: e.time, type: 'pedal', data: e })),
-    ];
+    for (const e of pedalEvents) {
+        allEvents.push({ time: e.time, type: 'pedal', data: e });
+    }
     allEvents.sort((a, b) => a.time - b.time);
 
     // 将音符数据注入瀑布流系统
@@ -620,12 +666,14 @@ function midiInit() {
    // console.log(`加载了 ${notes.length} 个音符，${pedalEvents.length} 个踏板事件`);
 
     currentpart = new Tone.Part((time, event) => {
-        if (event.type === 'note') {
+        if (event.type === 'noteOn') {
             const note = event.data;
             piano.keyDown({ note: note.name, time, velocity: note.velocity });
-            piano.keyUp({ note: note.name, time: time + note.duration });
             lightKey(note.midi, note.duration);
             emitParticle(note.midi, note.duration);
+        } else if (event.type === 'noteOff') {
+            const note = event.data;
+            piano.keyUp({ note: note.name, time });
         } else if (event.type === 'pedal') {
             if (event.data.down) {
                 piano.pedalDown({ time });
