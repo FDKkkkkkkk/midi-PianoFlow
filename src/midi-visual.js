@@ -224,8 +224,11 @@ const piano = new Piano({
 const volumeNode = new Tone.Gain(0.8).toDestination();
 piano.connect(volumeNode);
 
+let pianoLoaded = false;
+
 piano.load().then(() => {
     console.log('钢琴音源加载完成');
+    pianoLoaded = true;
     notyf.success('钢琴音源加载成功');
 }).catch((err) => {
     console.error('钢琴音源加载失败', err);
@@ -270,6 +273,10 @@ const iconPlay = playBtn.querySelector('.icon-play');
 const iconPause = playBtn.querySelector('.icon-pause');
 
 export function togglePlay() {
+    if (!pianoLoaded) {
+        notyf.error({ message: '钢琴音源尚未加载完成，请稍候', duration: 3000 });
+        return;
+    }
     if (!currentpart) {
         document.getElementById('midi').click();
         return;
