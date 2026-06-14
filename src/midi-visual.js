@@ -251,21 +251,21 @@ document.getElementById('midi').addEventListener('change', async (e) => {
     await loadMidiBuffer(buffer, file.name);
 });
 
-document.getElementById('load-example').addEventListener('click', async () => {
-    const btn = document.getElementById('load-example');
-    btn.disabled = true;
-    btn.textContent = '加载中...';
+document.getElementById('example-select').addEventListener('change', async (e) => {
+    const select = e.target;
+    const fileName = select.value;
+    if (!fileName) return;
+    const displayName = select.options[select.selectedIndex].textContent;
     try {
-        const response = await fetch(`${import.meta.env.BASE_URL}Flower_Dance.mid`);
+        const response = await fetch(`${import.meta.env.BASE_URL}example/${fileName}`);
         if (!response.ok) throw new Error('加载失败');
         const buffer = await response.arrayBuffer();
-        await loadMidiBuffer(buffer, 'Flower_Dance.mid');
+        await loadMidiBuffer(buffer, displayName + '.mid');
     } catch (err) {
         console.error('示例加载失败:', err);
-        alert('示例文件加载失败');
+        notyf.error('示例文件加载失败');
     } finally {
-        btn.disabled = false;
-        btn.textContent = '示例';
+        select.selectedIndex = 0;
     }
 });
 

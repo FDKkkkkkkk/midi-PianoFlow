@@ -102,13 +102,10 @@ html, body {
   pointer-events: auto;
 }
 
-#load-example {
+#example-select {
   position: absolute;
   top: 8px;
   left: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 4px 10px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
@@ -117,11 +114,17 @@ html, body {
   color: rgba(255, 255, 255, 0.85);
   font-size: 14px;
   cursor: pointer;
+  outline: none;
   transition: background 0.2s ease;
 }
 
-#load-example:hover {
+#example-select:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+#example-select option {
+  background: rgba(15, 15, 15, 0.95);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* 右上角设置按钮（悬停显示） */
