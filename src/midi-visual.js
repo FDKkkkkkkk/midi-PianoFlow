@@ -32,6 +32,7 @@ let canvasHeight = window.innerHeight;
 // 验证音符数量
 if (noteNames.length !== TOTAL_KEYS) {
     console.error(`音符数量错误: 期望${TOTAL_KEYS}个，实际${noteNames.length}个`);
+    notyf.error(`音符数量错误: 期望${TOTAL_KEYS}个，实际${noteNames.length}个`);
 }
 
 // ============ PixiJS App 初始化 ============
@@ -210,7 +211,6 @@ function lightKey(index, during) {
     if (!key) return;
     if (key.isBlack) {
         drawHighlightBlackKey(key, HighlightColor);
-        drawKeyShadow(key);
         addKeyGlow(key, glowLayer, HighlightColor);
     } else {
         drawHighlightWhiteKey(key, HighlightColor);

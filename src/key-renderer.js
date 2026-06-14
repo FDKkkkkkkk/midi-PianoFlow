@@ -104,7 +104,6 @@ export function removeKeyGlow(key, glowLayer) {
 export function drawDefaultBlackKey(key) {
     key.graphics.clear();
     key.graphics.beginFill(0x1a1a1a);
-    key.graphics.lineStyle(1, 0x444444, 1);
     key.graphics.drawRect(key.x, key.y, key.width, key.height);
     key.graphics.endFill();
     key.graphics.beginFill(0x333333, 0.3);
@@ -129,11 +128,7 @@ export function drawDefaultWhiteKey(key) {
 export function drawHighlightBlackKey(key, color) {
     key.graphics.clear();
     key.graphics.beginFill(color);
-    key.graphics.lineStyle(1, 0x666666, 1);
     key.graphics.drawRect(key.x, key.y, key.width, key.height);
-    key.graphics.endFill();
-    key.graphics.beginFill(0x555577, 0.3);
-    key.graphics.drawRect(key.x + 2, key.y + key.height - 10, key.width - 4, 8);
     key.graphics.endFill();
 }
 
@@ -220,7 +215,6 @@ export function addHoverEffects(app, keys, highlightColor) {
         if (hoveredKey) {
             if (hoveredKey.isBlack) {
                 drawHighlightBlackKey(hoveredKey, highlightColor);
-                drawKeyShadow(hoveredKey);
             } else {
                 drawHighlightWhiteKey(hoveredKey, highlightColor);
                 drawKeyShadow(hoveredKey);
