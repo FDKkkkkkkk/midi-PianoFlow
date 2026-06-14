@@ -9,6 +9,7 @@ import {
     drawKeyboard, addHoverEffects, addClickEffects
 } from './key-renderer';
 import { initParticle } from './particle.js';
+import { createWaveLine } from './wave-line.js';
 import {
     TOTAL_KEYS, WHITE_KEY_COUNT, noteNames,
     whiteKeyHeight, blackKeyWidth, blackKeyHeight, HighlightColor,
@@ -152,12 +153,44 @@ window.addEventListener('resize', () => {
         canvasHeight = window.innerHeight;
         app.renderer.resize(window.innerWidth, window.innerHeight);
         init();
+        waveLine.setY(canvasHeight - whiteKeyHeight + 5);
+        const r = getKeyboardRange();
+        waveLine.setRange(r.startX, r.endX);
     }, 200);
 });
 
 // 启动
 init();
 const { emit: emitParticle, setColor: setParticleColor, setEnabled: setParticleEnabled } = initParticle(app, pianoMap);
+
+// ============ 波浪线 ============
+function getKeyboardRange() {
+    const whiteKeys = keys.filter(k => !k.isBlack);
+    if (whiteKeys.length === 0) return { startX: 0, endX: 0 };
+    const startX = whiteKeys[0].x;
+    const last = whiteKeys[whiteKeys.length - 1];
+    const endX = last.x + last.width;
+    return { startX, endX };
+}
+
+const waveLineY = canvasHeight - whiteKeyHeight + 5;
+const kbRange = getKeyboardRange();
+const waveLine = createWaveLine(app, {
+    y: waveLineY,
+    startX: kbRange.startX,
+    endX: kbRange.endX,
+    amplitude: 3,
+    wavelength: 300,
+    speed: 1.5,
+    bandHeight: 10,
+    color: HighlightColor,
+    glowDistance: 40,
+    outerStrength: 8,
+});
+
+// 波浪线移到最底层
+app.stage.removeChild(waveLine.graphics);
+app.stage.addChildAt(waveLine.graphics, 0);
 
 // ============ 帧率显示 ============
 const stats = new Stats();
@@ -335,6 +368,8 @@ const bgColorInput = document.getElementById('bg-color');
 const highlightColorInput = document.getElementById('highlight-color');
 const waterfallColorInput = document.getElementById('waterfall-color');
 const particleColorInput = document.getElementById('particle-color');
+const waveToggle = document.getElementById('wave-toggle');
+const waveColorInput = document.getElementById('wave-color');
 const particleToggle = document.getElementById('particle-toggle');
 const fpsToggle = document.getElementById('fps-toggle');
 const reverbToggle = document.getElementById('reverb-toggle');
@@ -344,11 +379,13 @@ const reverbValue = document.getElementById('reverb-value');
 const DEFAULTS = {
     waterfallVisible: true,
     particleVisible: true,
+    waveVisible: true,
     fpsVisible: false,
     bgColor: '#000000',
     highlightColor: '#9400D3',
     waterfallColor: '#aa66ff',
     particleColor: '#aa66ff',
+    waveColor: '#9400D3',
     reverbEnabled: false,
     reverbWet: 30,
 };
@@ -384,6 +421,14 @@ if (savedFps !== null) {
     fpsToggle.checked = DEFAULTS.fpsVisible;
 }
 
+const savedWave = localStorage.getItem('waveVisible');
+if (savedWave !== null) {
+    waveLine.graphics.visible = savedWave === 'true';
+    waveToggle.checked = savedWave === 'true';
+} else {
+    waveToggle.checked = DEFAULTS.waveVisible;
+}
+
 function restoreOr(cfgKey, input, applyFn) {
     const saved = localStorage.getItem(cfgKey);
     if (saved) {
@@ -405,6 +450,10 @@ function applyHighlightColor(hexStr) {
     init();
 }
 
+function applyWaveColor(hexStr) {
+    waveLine.setColor(hexToNum(hexStr));
+}
+
 function applyWaterfallColor(hexStr) {
     waterfall.setColor(hexToNum(hexStr));
     // 瀑布流条的颜色在 initBar 时写入，需要重建
@@ -422,6 +471,7 @@ restoreOr('bgColor', bgColorInput, applyBgColor);
 restoreOr('highlightColor', highlightColorInput, applyHighlightColor);
 restoreOr('waterfallColor', waterfallColorInput, applyWaterfallColor);
 restoreOr('particleColor', particleColorInput, applyParticleColor);
+restoreOr('waveColor', waveColorInput, applyWaveColor);
 
 settingsBtn.addEventListener('click', () => {
     settingsDialog.showModal();
@@ -443,6 +493,17 @@ waterfallToggle.addEventListener('change', () => {
 particleToggle.addEventListener('change', () => {
     setParticleEnabled(particleToggle.checked);
     localStorage.setItem('particleVisible', particleToggle.checked);
+});
+
+waveToggle.addEventListener('change', () => {
+    waveLine.graphics.visible = waveToggle.checked;
+    localStorage.setItem('waveVisible', waveToggle.checked);
+});
+
+waveColorInput.addEventListener('input', () => {
+    const val = waveColorInput.value;
+    applyWaveColor(val);
+    localStorage.setItem('waveColor', val);
 });
 
 fpsToggle.addEventListener('change', () => {
@@ -533,6 +594,10 @@ settingsReset.addEventListener('click', () => {
     applyWaterfallColor(DEFAULTS.waterfallColor);
     particleColorInput.value = DEFAULTS.particleColor;
     applyParticleColor(DEFAULTS.particleColor);
+    waveToggle.checked = DEFAULTS.waveVisible;
+    waveLine.graphics.visible = DEFAULTS.waveVisible;
+    waveColorInput.value = DEFAULTS.waveColor;
+    applyWaveColor(DEFAULTS.waveColor);
     reverbToggle.checked = DEFAULTS.reverbEnabled;
     reverbSlider.value = DEFAULTS.reverbWet;
     applyReverbToggle();
