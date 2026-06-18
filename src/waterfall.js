@@ -30,6 +30,19 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         waterfallGlowFilter.color = numColor;
     }
 
+    // 瀑布流样式：'solid'（实心）或 'outline'（空心边框）
+    let waterfallStyle = 'solid';
+    // 圆角半径
+    let waterfallRadius = 3;
+
+    function setStyle(style) {
+        waterfallStyle = style;
+    }
+
+    function setRadius(radius) {
+        waterfallRadius = radius;
+    }
+
     // 创建或从对象池获取一个瀑布流音符条
     function getBar() {
         if (waterfallBarPool.length > 0) {
@@ -38,7 +51,7 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
             return bar;
         }
         const bar = new Graphics();
-        bar.filters = [waterfallGlowFilter];
+        // filters 在 initBar 中根据样式决定是否挂载
         return bar;
     }
 
@@ -57,9 +70,18 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         const barHeight = Math.max(noteData.note.duration * WATERFALL.pixelsPerSecond, 3);
 
         bar.clear();
-        bar.beginFill(WATERFALL.color, 0.85);
-        bar.drawRect(0, 0, key.width, barHeight);
-        bar.endFill();
+        if (waterfallStyle === 'outline') {
+            // 空心样式：只描边，不填充，中间透明（透出背景色），带圆角
+            bar.roundRect(0, 0, key.width, barHeight, waterfallRadius);
+            bar.stroke({ width: 3, color: WATERFALL.color, alpha: 0.95 });
+            bar.filters = null;
+        } else {
+            // 默认实心样式
+            bar.beginFill(WATERFALL.color, 0.85);
+            bar.drawRect(0, 0, key.width, barHeight);
+            bar.endFill();
+            bar.filters = [waterfallGlowFilter];
+        }
 
         bar._keyX = key.x;
         bar._keyWidth = key.width;
@@ -130,5 +152,5 @@ export function createWaterfall(waterfallLayer, pianoMap, keysRef) {
         allWaterfallNotes.length = 0;
     }
 
-    return { update, addNotes, clear, setColor };
+    return { update, addNotes, clear, setColor, setStyle, setRadius };
 }

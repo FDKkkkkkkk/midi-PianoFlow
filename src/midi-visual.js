@@ -362,6 +362,9 @@ document.addEventListener('keydown', (e) => {
 const settingsBtn = document.getElementById('settings-btn');
 const settingsDialog = document.getElementById('settings-dialog');
 const waterfallToggle = document.getElementById('waterfall-toggle');
+const waterfallStyleToggle = document.getElementById('waterfall-style-toggle');
+const waterfallRadiusSlider = document.getElementById('waterfall-radius-slider');
+const waterfallRadiusValue = document.getElementById('waterfall-radius-value');
 const settingsClose = document.getElementById('settings-close');
 const settingsReset = document.getElementById('settings-reset');
 const bgColorInput = document.getElementById('bg-color');
@@ -384,6 +387,8 @@ const DEFAULTS = {
     bgColor: '#000000',
     highlightColor: '#9400D3',
     waterfallColor: '#aa66ff',
+    waterfallOutline: false,
+    waterfallRadius: 3,
     particleColor: '#aa66ff',
     waveColor: '#9400D3',
     reverbEnabled: false,
@@ -440,6 +445,31 @@ function restoreOr(cfgKey, input, applyFn) {
     }
 }
 
+// 瀑布流空心样式（checkbox 需手动恢复）
+const savedWaterfallOutline = localStorage.getItem('waterfallOutline');
+if (savedWaterfallOutline !== null) {
+    waterfallStyleToggle.checked = savedWaterfallOutline === 'true';
+    applyWaterfallStyle(savedWaterfallOutline === 'true');
+} else {
+    waterfallStyleToggle.checked = DEFAULTS.waterfallOutline;
+    applyWaterfallStyle(DEFAULTS.waterfallOutline);
+    waterfallRadiusSlider.value = DEFAULTS.waterfallRadius;
+    waterfallRadiusValue.textContent = DEFAULTS.waterfallRadius;
+    applyWaterfallRadius(DEFAULTS.waterfallRadius);
+}
+
+// 瀑布流圆角
+const savedWaterfallRadius = localStorage.getItem('waterfallRadius');
+if (savedWaterfallRadius !== null) {
+    waterfallRadiusSlider.value = savedWaterfallRadius;
+    waterfallRadiusValue.textContent = savedWaterfallRadius;
+    applyWaterfallRadius(savedWaterfallRadius);
+} else {
+    waterfallRadiusSlider.value = DEFAULTS.waterfallRadius;
+    waterfallRadiusValue.textContent = DEFAULTS.waterfallRadius;
+    applyWaterfallRadius(DEFAULTS.waterfallRadius);
+}
+
 function applyBgColor(hexStr) {
     app.renderer.background.color = hexToNum(hexStr);
     document.body.style.background = hexStr;
@@ -457,6 +487,23 @@ function applyWaveColor(hexStr) {
 function applyWaterfallColor(hexStr) {
     waterfall.setColor(hexToNum(hexStr));
     // 瀑布流条的颜色在 initBar 时写入，需要重建
+    if (notes.length > 0) {
+        waterfall.clear();
+        waterfall.addNotes(notes.map(n => ({ note: n })));
+    }
+}
+
+function applyWaterfallStyle(outline) {
+    waterfall.setStyle(outline ? 'outline' : 'solid');
+    // 样式在 initBar 时写入，需要重建已有瀑布流条
+    if (notes.length > 0) {
+        waterfall.clear();
+        waterfall.addNotes(notes.map(n => ({ note: n })));
+    }
+}
+
+function applyWaterfallRadius(radius) {
+    waterfall.setRadius(Number(radius));
     if (notes.length > 0) {
         waterfall.clear();
         waterfall.addNotes(notes.map(n => ({ note: n })));
@@ -571,6 +618,19 @@ waterfallColorInput.addEventListener('input', () => {
     localStorage.setItem('waterfallColor', val);
 });
 
+waterfallStyleToggle.addEventListener('change', () => {
+    const val = waterfallStyleToggle.checked;
+    applyWaterfallStyle(val);
+    localStorage.setItem('waterfallOutline', val);
+});
+
+waterfallRadiusSlider.addEventListener('input', () => {
+    const val = waterfallRadiusSlider.value;
+    waterfallRadiusValue.textContent = val;
+    applyWaterfallRadius(val);
+    localStorage.setItem('waterfallRadius', val);
+});
+
 particleColorInput.addEventListener('input', () => {
     const val = particleColorInput.value;
     applyParticleColor(val);
@@ -592,6 +652,11 @@ settingsReset.addEventListener('click', () => {
     applyHighlightColor(DEFAULTS.highlightColor);
     waterfallColorInput.value = DEFAULTS.waterfallColor;
     applyWaterfallColor(DEFAULTS.waterfallColor);
+    waterfallStyleToggle.checked = DEFAULTS.waterfallOutline;
+    applyWaterfallStyle(DEFAULTS.waterfallOutline);
+    waterfallRadiusSlider.value = DEFAULTS.waterfallRadius;
+    waterfallRadiusValue.textContent = DEFAULTS.waterfallRadius;
+    applyWaterfallRadius(DEFAULTS.waterfallRadius);
     particleColorInput.value = DEFAULTS.particleColor;
     applyParticleColor(DEFAULTS.particleColor);
     waveToggle.checked = DEFAULTS.waveVisible;
