@@ -85,6 +85,13 @@
     <button id="fullscreen" title="全屏">
       <img src="/src/assets/icons/fullscreen.svg" alt="全屏" width="20" height="20" />
     </button>
+    <button id="export-mp3" title="导出 MP3">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    </button>
       <!-- <button id="scoreplay">score播放</button> -->
   </div>
   <div id="settings-container">
@@ -177,6 +184,17 @@
       <div class="dialog-buttons">
         <button id="settings-reset" class="dialog-reset-btn">重置默认</button>
         <button id="settings-close" class="dialog-close-btn">关闭</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="export-confirm-dialog">
+    <div class="dialog-content">
+      <h3>导出 MP3</h3>
+      <p id="export-confirm-msg" style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.6;"></p>
+      <p style="margin: 0 0 20px 0; font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5;">提示：MIDI 文件如果大于两分钟，导出时间可能较长。</p>
+      <div class="dialog-buttons">
+        <button id="export-confirm-cancel" class="dialog-reset-btn">取消</button>
+        <button id="export-confirm-ok" class="dialog-close-btn">确认导出</button>
       </div>
     </div>
   </dialog>

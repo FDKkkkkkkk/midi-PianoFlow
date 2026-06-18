@@ -14,6 +14,7 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@momer/pixi-particle-emitter": "^6.0.3",
     "@tonejs/midi": "^2.0.28",
     "d-piano": "^1.2.0",

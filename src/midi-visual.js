@@ -16,6 +16,7 @@ import {
     setHighlightColor
 } from './constants.js';
 import { createWaterfall } from './waterfall.js';
+import { exportMidiToMp3 } from './export-audio.js';
 import { formatTime, setupVolume, setupFullscreen } from './controls.js';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
@@ -31,7 +32,6 @@ let canvasHeight = window.innerHeight;
 
 // 验证音符数量
 if (noteNames.length !== TOTAL_KEYS) {
-    console.error(`音符数量错误: 期望${TOTAL_KEYS}个，实际${noteNames.length}个`);
     notyf.error(`音符数量错误: 期望${TOTAL_KEYS}个，实际${noteNames.length}个`);
 }
 
@@ -262,12 +262,10 @@ reverb.connect(volumeNode);
 let pianoLoaded = false;
 
 piano.load().then(() => {
-    console.log('钢琴音源加载完成');
     pianoLoaded = true;
     notyf.success('钢琴音源加载成功');
 }).catch((err) => {
-    console.error('钢琴音源加载失败', err);
-    notyf.error('钢琴音源加载失败');
+    notyf.error(`钢琴音源加载失败: ${err?.message || err}`);
 });
 
 // ============ MIDI 文件加载 ============
@@ -295,8 +293,7 @@ document.getElementById('example-select').addEventListener('change', async (e) =
         const buffer = await response.arrayBuffer();
         await loadMidiBuffer(buffer, displayName + '.mid');
     } catch (err) {
-        console.error('示例加载失败:', err);
-        notyf.error('示例文件加载失败');
+        notyf.error(`示例文件加载失败: ${err?.message || err}`);
     } finally {
         select.selectedIndex = 0;
     }
@@ -306,6 +303,7 @@ document.getElementById('example-select').addEventListener('change', async (e) =
 const playBtn = document.getElementById('playmidi');
 const iconPlay = playBtn.querySelector('.icon-play');
 const iconPause = playBtn.querySelector('.icon-pause');
+const exportMp3Btn = document.getElementById('export-mp3');
 
 export function togglePlay() {
     if (!pianoLoaded) {
@@ -349,6 +347,87 @@ Tone.Transport.on('stop', () => {
 
 
 playBtn.onclick = () => {  togglePlay(); };
+
+// ============ 导出 MP3 ============
+let isExporting = false;
+exportMp3Btn.addEventListener('click', async () => {
+    if (isExporting) { notyf.error('正在导出中，请等待'); return; }
+    if (!midi) { notyf.error('未加载 MIDI 文件'); return; }
+    if (!pianoLoaded) { notyf.error('钢琴音源尚未加载完成'); return; }
+
+    // 弹出确认对话框（HTML5 <dialog>）
+    const confirmDialog = document.getElementById('export-confirm-dialog');
+    const confirmMsg = document.getElementById('export-confirm-msg');
+    const confirmOk = document.getElementById('export-confirm-ok');
+    const confirmCancel = document.getElementById('export-confirm-cancel');
+
+    const mins = Math.floor(midi.duration / 60);
+    const secs = Math.round(midi.duration % 60);
+    const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+    confirmMsg.textContent = `当前 MIDI 时长 ${timeStr}，是否确认导出为 MP3？`;
+
+    const confirmed = await new Promise((resolve) => {
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+        const onClose = () => { cleanup(); resolve(false); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') { cleanup(); resolve(false); }
+        };
+        const cleanup = () => {
+            confirmOk.removeEventListener('click', onOk);
+            confirmCancel.removeEventListener('click', onCancel);
+            confirmDialog.removeEventListener('close', onClose);
+            document.removeEventListener('keydown', onKey);
+            confirmDialog.close();
+        };
+        confirmOk.addEventListener('click', onOk);
+        confirmCancel.addEventListener('click', onCancel);
+        confirmDialog.addEventListener('close', onClose);
+        document.addEventListener('keydown', onKey);
+        confirmDialog.showModal();
+    });
+
+    if (!confirmed) return;
+
+    isExporting = true;
+    exportMp3Btn.disabled = true;
+    const origTitle = exportMp3Btn.title;
+    exportMp3Btn.title = '正在导出...';
+    exportMp3Btn.style.opacity = '0.5';
+    exportMp3Btn.style.cursor = 'not-allowed';
+    const exportNotyf = notyf.success('正在导出 MP3，请勿关闭页面...');
+
+    try {
+        const blob = await exportMidiToMp3(
+            midi,
+            { reverbWet: reverb.wet.value, volume: volumeNode.gain.value },
+        );
+
+        if (!blob || blob.size === 0) {
+            notyf.error('导出失败：MP3 数据为空');
+            return;
+        }
+
+        const filename = (document.getElementById('filename').textContent || 'output').replace(/\.mid$/i, '') + '.mp3';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        notyf.success(`MP3 导出成功 (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+    } catch (err) {
+        notyf.error(`导出 MP3 失败: ${err?.message || err}`);
+    } finally {
+        isExporting = false;
+        exportMp3Btn.disabled = false;
+        exportMp3Btn.title = origTitle;
+        exportMp3Btn.style.opacity = '';
+        exportMp3Btn.style.cursor = '';
+    }
+});
 
 // 空格键控制播放/暂停
 document.addEventListener('keydown', (e) => {
